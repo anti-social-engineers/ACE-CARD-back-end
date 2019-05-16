@@ -11,6 +11,7 @@ package acecardapi;
 import io.reactiverse.pgclient.PgClient;
 import io.reactiverse.pgclient.PgPool;
 import io.reactiverse.pgclient.PgPoolOptions;
+import io.reactiverse.pgclient.PgRowSet;
 import io.vertx.config.ConfigRetriever;
 import io.vertx.config.ConfigRetrieverOptions;
 import io.vertx.config.ConfigStoreOptions;
@@ -37,11 +38,25 @@ public class MainVerticle extends AbstractVerticle {
       .setMaxSize(config().getInteger("db.maxc", 5));
 
     // Create the pooled client
-    PgClient dbClient = PgClient.pool(vertx, options);
+    PgPool dbClient = PgClient.pool(vertx, options);
+
+
+    // Test DB
+    dbClient.query("SELECT * FROM users", ar -> {
+      if (ar.succeeded()) {
+        PgRowSet result = ar.result();
+        System.out.println("Got " + result.size() + " rows ");
+      } else {
+        System.out.println("Failure: " + ar.cause().getMessage());
+      }
+
+      // Now close the pool
+      dbClient.close();
+    });
 
     // Create the HttpServer
     vertx.createHttpServer().requestHandler(router).listen(
-      config().getInteger("http.port", 8000),
+      config().getInteger("http.port", 8888),
       result -> {
         if (result.succeeded())
           startFuture.complete();
