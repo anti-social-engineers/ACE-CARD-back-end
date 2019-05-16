@@ -216,4 +216,4 @@ out
 *.swp
 .vertx
 
-app.properties
+config.json
