@@ -3,3 +3,7 @@ jdk:
   - openjdk11
 before_install:
   - chmod +x mvnw
+branches:
+  only:
+    - master
+    - staging
