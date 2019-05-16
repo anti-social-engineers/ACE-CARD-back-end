@@ -215,3 +215,5 @@ out
 *.class
 *.swp
 .vertx
+
+app.properties
