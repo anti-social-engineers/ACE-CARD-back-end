@@ -2,8 +2,6 @@ ACE-CARD-back-end
 
 [![Build Status](https://travis-ci.com/anti-social-engineers/AceCardAPI.svg?branch=master)](https://travis-ci.com/anti-social-engineers/AceCardAPI)
 
-image:https://img.shields.io/badge/vert.x-3.7.0-purple.svg[link="https://vertx.io"]
-
 This application was generated using http://start.vertx.io
 
 == Building
