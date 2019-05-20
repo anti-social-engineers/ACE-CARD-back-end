@@ -41,18 +41,18 @@ public class MainVerticle extends AbstractVerticle {
     PgPool dbClient = PgClient.pool(vertx, options);
 
 
-    // Test DB
-    dbClient.query("SELECT * FROM users", ar -> {
-      if (ar.succeeded()) {
-        PgRowSet result = ar.result();
-        System.out.println("Got " + result.size() + " rows ");
-      } else {
-        System.out.println("Failure: " + ar.cause().getMessage());
-      }
-
-      // Now close the pool
-      dbClient.close();
-    });
+//    // Test DB
+//    dbClient.query("SELECT * FROM users", ar -> {
+//      if (ar.succeeded()) {
+//        PgRowSet result = ar.result();
+//        System.out.println("Got " + result.size() + " rows ");
+//      } else {
+//        System.out.println("Failure: " + ar.cause().getMessage());
+//      }
+//
+//      // Now close the pool
+//      dbClient.close();
+//    });
 
     // Create the HttpServer
     vertx.createHttpServer().requestHandler(router).listen(
