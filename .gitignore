@@ -215,3 +215,5 @@ out
 *.class
 *.swp
 .vertx
+
+config.json

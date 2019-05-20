@@ -1,0 +1,27 @@
+# To use:
+# Create 'config.json' in the conf directory.
+# Configure the json file.
+
+version = 0.1
+
+# webserver cofniguration:
+http.port =
+
+# Database configuration:
+db.Host =
+db.Port =
+db.Name =
+db.User =
+db.Pass =
+db.MaxC =
+
+Example:
+{
+  "http.port" : 8082,
+  "db.Host" : "127.0.0.1",
+  "db.Port" : 5432,
+  "db.Name" : "asecard-test",
+  "db.User" : "aaron",
+  "db.Pass" : "kaas123",
+  "db.MaxC" : 5
+}
