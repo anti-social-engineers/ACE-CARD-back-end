@@ -29,4 +29,8 @@ To run your application:
 * https://gitter.im/eclipse-vertx/vertx-users[Vert.x Gitter]
 
 
-
+## Launching from IDE
+* First create a config.json, see src/main/conf/how-to-config.txt
+* Create an application launcher
+* main class: io.vertx.core.Launcher
+* run acecardapi.MainVerticle -conf src/main/conf/config.json
