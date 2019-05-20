@@ -8,8 +8,6 @@
 
 package acecardapi.apierrors;
 
-import io.vertx.core.json.JsonObject;
-
 public class InputFormatViolation extends FieldViolation {
 
   public InputFormatViolation(String field) {

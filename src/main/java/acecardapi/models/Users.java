@@ -10,13 +10,14 @@ package acecardapi.models;
 
 import acecardapi.exceptions.InvalidEmailException;
 import io.reactiverse.pgclient.Tuple;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.mail.mailencoder.EmailAddress;
 
 import java.util.UUID;
 
-public class User {
+public class Users {
 
   private UUID id;
 
@@ -26,7 +27,7 @@ public class User {
 
   private String password_salt;
 
-  public User(String email, String password, String password_salt) {
+  public Users(String email, String password, String password_salt) {
 
 
     this.email = email;
@@ -34,12 +35,21 @@ public class User {
     this.password_salt = password_salt;
   }
 
-  public User() {
+  public Users() {
     //TODO: Check if exists?
     this.id = UUID.randomUUID();
   }
 
-  public String getName() {
+  public Users(UUID id, String email) {
+    this.id = id;
+    this.email = email;
+  }
+
+  public UUID getId() {
+    return id;
+  }
+
+  public String getEmail() {
     return email;
   }
 
@@ -86,4 +96,9 @@ public class User {
   public JsonObject toJsonObjectLogin() {
     return new JsonObject().put("email", email).put("password", password);
   }
+
+  public JsonObject toJsonObject() {
+    return new JsonObject().put("id", id.toString()).put("email", email);
+  }
 }
+

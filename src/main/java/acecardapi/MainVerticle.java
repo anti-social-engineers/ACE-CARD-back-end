@@ -11,14 +11,17 @@ package acecardapi;
 import acecardapi.auth.IReactiveAuth;
 import acecardapi.auth.PBKDF2Strategy;
 import acecardapi.auth.ReactiveAuth;
+import acecardapi.handlers.LoginHandler;
 import acecardapi.handlers.UserHandler;
 import io.reactiverse.pgclient.PgClient;
 import io.reactiverse.pgclient.PgPool;
 import io.reactiverse.pgclient.PgPoolOptions;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
+import io.vertx.core.json.Json;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
+import io.vertx.ext.web.handler.CSRFHandler;
 
 public class MainVerticle extends AbstractVerticle {
 
@@ -54,6 +57,8 @@ public class MainVerticle extends AbstractVerticle {
 
     // UserHandler
     UserHandler userHandler = new UserHandler(dbClient, authProvider);
+    // LoginHandler
+    LoginHandler loginHandler = new LoginHandler(dbClient, authProvider);
 
 
     /*
@@ -65,22 +70,15 @@ public class MainVerticle extends AbstractVerticle {
     // Enable request body reading
     router.route("/api/users/*").handler(BodyHandler.create());
 
-    // Create a whisky
+    // Get all users
+    router.get("/api/users").handler(userHandler::getUsers);
+    // Create a user
     router.post("/api/users").handler(userHandler::createUser);
 
-
-//    // Test DB
-//    dbClient.query("SELECT * FROM users", ar -> {
-//      if (ar.succeeded()) {
-//        PgRowSet result = ar.result();
-//        System.out.println("Got " + result.size() + " rows ");
-//      } else {
-//        System.out.println("Failure: " + ar.cause().getMessage());
-//      }
-//
-//      // Now close the pool
-//      dbClient.close();
-//    });
+    // Enable request body reading
+    router.route("/api/login/*").handler(BodyHandler.create());
+    // Login request
+    router.post("/api/login").handler(loginHandler::login);
 
     // Create the HttpServer
     vertx.createHttpServer().requestHandler(router).listen(

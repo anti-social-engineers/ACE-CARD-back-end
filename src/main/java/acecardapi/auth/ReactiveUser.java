@@ -33,7 +33,7 @@ import java.nio.charset.StandardCharsets;
 public class ReactiveUser extends AbstractUser {
 
   private ReactiveAuth authProvider;
-  private String username;
+  private String email;
   private JsonObject principal;
 
   private String rolePrefix;
@@ -41,8 +41,8 @@ public class ReactiveUser extends AbstractUser {
   public ReactiveUser() {
   }
 
-  ReactiveUser(String username, ReactiveAuth authProvider, String rolePrefix) {
-    this.username = username;
+  ReactiveUser(String email, ReactiveAuth authProvider, String rolePrefix) {
+    this.email = email;
     this.authProvider = authProvider;
     this.rolePrefix = rolePrefix;
   }
@@ -60,7 +60,7 @@ public class ReactiveUser extends AbstractUser {
   @Override
   public JsonObject principal() {
     if (principal == null) {
-      principal = new JsonObject().put("username", username);
+      principal = new JsonObject().put("email", email);
     }
     return principal;
   }
@@ -77,7 +77,7 @@ public class ReactiveUser extends AbstractUser {
   @Override
   public void writeToBuffer(Buffer buff) {
     super.writeToBuffer(buff);
-    byte[] bytes = username.getBytes(StandardCharsets.UTF_8);
+    byte[] bytes = email.getBytes(StandardCharsets.UTF_8);
     buff.appendInt(bytes.length);
     buff.appendBytes(bytes);
 
@@ -92,7 +92,7 @@ public class ReactiveUser extends AbstractUser {
     int len = buffer.getInt(pos);
     pos += 4;
     byte[] bytes = buffer.getBytes(pos, pos + len);
-    username = new String(bytes, StandardCharsets.UTF_8);
+    email = new String(bytes, StandardCharsets.UTF_8);
     pos += len;
 
     len = buffer.getInt(pos);
@@ -105,7 +105,7 @@ public class ReactiveUser extends AbstractUser {
   }
 
 //  private void hasRoleOrPermission(String roleOrPermission, String query, Handler<AsyncResult<Boolean>> resultHandler) {
-//    authProvider.executeQuery(query, new JsonArray().add(username), resultHandler, rs -> {
+//    authProvider.executeQuery(query, new JsonArray().add(email), resultHandler, rs -> {
 //      boolean has = false;
 //      for (JsonArray result : rs.getResults()) {
 //        String theRoleOrPermission = result.getString(0);
