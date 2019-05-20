@@ -8,17 +8,17 @@
 
 package acecardapi;
 
+import acecardapi.auth.IReactiveAuth;
+import acecardapi.auth.PBKDF2Strategy;
+import acecardapi.auth.ReactiveAuth;
+import acecardapi.handlers.UserHandler;
 import io.reactiverse.pgclient.PgClient;
 import io.reactiverse.pgclient.PgPool;
 import io.reactiverse.pgclient.PgPoolOptions;
-import io.reactiverse.pgclient.PgRowSet;
-import io.vertx.config.ConfigRetriever;
-import io.vertx.config.ConfigRetrieverOptions;
-import io.vertx.config.ConfigStoreOptions;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
-import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.handler.BodyHandler;
 
 public class MainVerticle extends AbstractVerticle {
 
@@ -39,6 +39,34 @@ public class MainVerticle extends AbstractVerticle {
 
     // Create the pooled client
     PgPool dbClient = PgClient.pool(vertx, options);
+
+
+    // Create the authentication provider
+    ReactiveAuth authProvider = IReactiveAuth.create(vertx, dbClient);
+    authProvider.setAuthenticationQuery("SELECT password, password_salt FROM users WHERE email = $1");
+    authProvider.setHashStrategy(new PBKDF2Strategy(vertx));
+
+    /*
+
+    Handlers
+
+     */
+
+    // UserHandler
+    UserHandler userHandler = new UserHandler(dbClient, authProvider);
+
+
+    /*
+
+    Routes
+
+     */
+
+    // Enable request body reading
+    router.route("/api/users/*").handler(BodyHandler.create());
+
+    // Create a whisky
+    router.post("/api/users").handler(userHandler::createUser);
 
 
 //    // Test DB

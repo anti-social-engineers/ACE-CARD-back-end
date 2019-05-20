@@ -50,9 +50,9 @@ public class ReactiveAuth implements AuthProvider, IReactiveAuth {
   @Override
   public void authenticate(JsonObject authInfo, Handler<AsyncResult<User>> resultHandler) {
 
-    String username = authInfo.getString("username");
+    String username = authInfo.getString("email");
     if (username == null) {
-      resultHandler.handle(Future.failedFuture("authInfo must contain username in 'username' field"));
+      resultHandler.handle(Future.failedFuture("authInfo must contain email in 'email' field"));
       return;
     }
     String password = authInfo.getString("password");
@@ -62,17 +62,18 @@ public class ReactiveAuth implements AuthProvider, IReactiveAuth {
     }
 
 
-    executeAuthQuery(authenticateQuery, authInfo.getString("username"), resultHandler, rs -> {
+    executeAuthQuery(authenticateQuery, authInfo.getString("email"), resultHandler, rs -> {
 
       switch (rs.rowCount()) {
         case 0: {
+
           // Unknown user/password
-          resultHandler.handle(Future.failedFuture("Invalid username/password"));
+          resultHandler.handle(Future.failedFuture("Invalid email/password"));
           break;
+
         }
         case 1: {
           Row row = rs.iterator().next();
-//          JsonArray row = rs.value();
           String hashedStoredPwd = strategy.getHashedStoredPwd(row);
           String salt = strategy.getSalt(row);
           // extract the version (-1 means no version)
@@ -91,7 +92,7 @@ public class ReactiveAuth implements AuthProvider, IReactiveAuth {
           if (IHashStrategy.isEqual(hashedStoredPwd, hashedPassword)) {
             resultHandler.handle(Future.succeededFuture(new ReactiveUser(username, this, rolePrefix)));
           } else {
-            resultHandler.handle(Future.failedFuture("Invalid username/password"));
+            resultHandler.handle(Future.failedFuture("Invalid email/password"));
           }
           break;
         }
@@ -158,13 +159,13 @@ public class ReactiveAuth implements AuthProvider, IReactiveAuth {
     return permissionsQuery;
   }
 
-  <T> void executeAuthQuery(String query, String name, Handler<AsyncResult<T>> resultHandler,
+  private <T> void executeAuthQuery(String query, String name, Handler<AsyncResult<T>> resultHandler,
                             Consumer<PgRowSet> resultSetConsumer) {
     client.getConnection(res -> {
       if (res.succeeded()) {
         PgConnection connection = res.result();
 
-        // TODO: SQL Injectin
+        // TODO: SQL Injection
         connection.preparedQuery(query, Tuple.of(name), queryRes -> {
           if (queryRes.succeeded()) {
             PgRowSet rs = queryRes.result();
