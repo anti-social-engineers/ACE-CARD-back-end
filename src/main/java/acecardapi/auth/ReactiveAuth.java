@@ -29,9 +29,6 @@ import io.vertx.ext.auth.User;
 
 import java.util.function.Consumer;
 
-/**
- * @author <a href="http://tfox.org">Tim Fox</a>
- */
 public class ReactiveAuth implements AuthProvider, IReactiveAuth {
 
   private PgPool client;
@@ -90,7 +87,7 @@ public class ReactiveAuth implements AuthProvider, IReactiveAuth {
           }
           String hashedPassword = strategy.computeHash(password, salt, version);
           if (IHashStrategy.isEqual(hashedStoredPwd, hashedPassword)) {
-            resultHandler.handle(Future.succeededFuture(new ReactiveUser(username, this, rolePrefix)));
+            resultHandler.handle(Future.succeededFuture(new ReactiveUser(username, this, rolePrefix, row.getUUID("id"))));
           } else {
             resultHandler.handle(Future.failedFuture("Invalid email/password"));
           }
@@ -165,7 +162,6 @@ public class ReactiveAuth implements AuthProvider, IReactiveAuth {
       if (res.succeeded()) {
         PgConnection connection = res.result();
 
-        // TODO: SQL Injection
         connection.preparedQuery(query, Tuple.of(name), queryRes -> {
           if (queryRes.succeeded()) {
             PgRowSet rs = queryRes.result();

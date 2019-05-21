@@ -32,7 +32,6 @@ import io.vertx.ext.auth.AuthProvider;
  * compatible, however for new deployments or security upgrades it is recommended to use the PBKDF2 strategy
  * as it is the current OWASP recommendation for password storage.
  *
- * @author <a href="http://tfox.org">Tim Fox</a>
  */
 @VertxGen
 public interface IReactiveAuth extends AuthProvider {

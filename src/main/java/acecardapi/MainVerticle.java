@@ -12,16 +12,19 @@ import acecardapi.auth.IReactiveAuth;
 import acecardapi.auth.PBKDF2Strategy;
 import acecardapi.auth.ReactiveAuth;
 import acecardapi.handlers.LoginHandler;
+import acecardapi.handlers.RegistrationHandler;
 import acecardapi.handlers.UserHandler;
 import io.reactiverse.pgclient.PgClient;
 import io.reactiverse.pgclient.PgPool;
 import io.reactiverse.pgclient.PgPoolOptions;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
-import io.vertx.core.json.Json;
+import io.vertx.ext.auth.PubSecKeyOptions;
+import io.vertx.ext.auth.jwt.JWTAuth;
+import io.vertx.ext.auth.jwt.JWTAuthOptions;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
-import io.vertx.ext.web.handler.CSRFHandler;
+import io.vertx.ext.web.handler.JWTAuthHandler;
 
 public class MainVerticle extends AbstractVerticle {
 
@@ -46,39 +49,50 @@ public class MainVerticle extends AbstractVerticle {
 
     // Create the authentication provider
     ReactiveAuth authProvider = IReactiveAuth.create(vertx, dbClient);
-    authProvider.setAuthenticationQuery("SELECT password, password_salt FROM users WHERE email = $1");
+    authProvider.setAuthenticationQuery("SELECT id, password, password_salt FROM users WHERE email = $1");
     authProvider.setHashStrategy(new PBKDF2Strategy(vertx));
 
+
     /*
+    Setup JWT
+     */
 
+    JWTAuth jwtProvider = JWTAuth.create(vertx, new JWTAuthOptions()
+      .addPubSecKey(new PubSecKeyOptions()
+        .setAlgorithm("HS256")
+        .setPublicKey(config().getString("jwt.publickey", "keyboard cat"))
+        .setSymmetric(true)));
+
+
+    /*
     Handlers
-
      */
 
     // UserHandler
-    UserHandler userHandler = new UserHandler(dbClient, authProvider);
+    UserHandler userHandler = new UserHandler(dbClient,config());
+    // RegistrationHandler
+    RegistrationHandler registrationHandler = new RegistrationHandler(dbClient, config(), authProvider);
     // LoginHandler
-    LoginHandler loginHandler = new LoginHandler(dbClient, authProvider);
+    LoginHandler loginHandler = new LoginHandler(dbClient, config(), authProvider, jwtProvider);
 
 
     /*
-
     Routes
-
      */
 
-    // Enable request body reading
-    router.route("/api/users/*").handler(BodyHandler.create());
+    // Protected apis (All these endpoints require JWT)
+    // TODO: Beautify?
+    router.route("/api/users/*").handler(JWTAuthHandler.create(jwtProvider));
 
-    // Get all users
+    //// Handle register/login endpoints ////
+    router.route("/api/register").handler(BodyHandler.create());
+    router.route("/api/login").handler(BodyHandler.create());
+    router.route("/api/register").handler(registrationHandler::registerUser);
+    router.route("/api/login").handler(loginHandler::login);
+
+    //// User Management ////
     router.get("/api/users").handler(userHandler::getUsers);
-    // Create a user
-    router.post("/api/users").handler(userHandler::createUser);
 
-    // Enable request body reading
-    router.route("/api/login/*").handler(BodyHandler.create());
-    // Login request
-    router.post("/api/login").handler(loginHandler::login);
 
     // Create the HttpServer
     vertx.createHttpServer().requestHandler(router).listen(

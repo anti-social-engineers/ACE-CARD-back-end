@@ -29,10 +29,10 @@ public class Users {
 
   public Users(String email, String password, String password_salt) {
 
-
     this.email = email;
     this.password = password;
     this.password_salt = password_salt;
+
   }
 
   public Users() {

@@ -25,26 +25,25 @@ import io.vertx.ext.auth.AbstractUser;
 import io.vertx.ext.auth.AuthProvider;
 
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
-/**
- *
- * @author <a href="http://tfox.org">Tim Fox</a>
- */
 public class ReactiveUser extends AbstractUser {
 
   private ReactiveAuth authProvider;
   private String email;
   private JsonObject principal;
+  private UUID id;
 
   private String rolePrefix;
 
   public ReactiveUser() {
   }
 
-  ReactiveUser(String email, ReactiveAuth authProvider, String rolePrefix) {
+  ReactiveUser(String email, ReactiveAuth authProvider, String rolePrefix, UUID userID) {
     this.email = email;
     this.authProvider = authProvider;
     this.rolePrefix = rolePrefix;
+    this.id = userID;
   }
 
   @Override
@@ -60,7 +59,7 @@ public class ReactiveUser extends AbstractUser {
   @Override
   public JsonObject principal() {
     if (principal == null) {
-      principal = new JsonObject().put("email", email);
+      principal = new JsonObject().put("email", this.email).put("id", this.id.toString());
     }
     return principal;
   }
