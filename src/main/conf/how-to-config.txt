@@ -5,23 +5,29 @@
 version = 0.1
 
 # webserver cofniguration:
-http.port =
+http.port : Port at which the server should run
 
 # Database configuration:
-db.Host =
-db.Port =
-db.Name =
-db.User =
-db.Pass =
-db.MaxC =
+db.Host : The domain where the db server runs
+db.Port : The port at which the db runs
+db.Name : The name of the database
+db.User : The user of the database
+db.Pass : The password of the database user
+db.MaxC : The max amount of connections
+
+# JWT configuration:
+jwt.publickey : A secure base64 encoded key
+jwt.exptime : Amount of seconds before a key expires
 
 Example:
 {
-  "http.port" : 8082,
-  "db.Host" : "127.0.0.1",
-  "db.Port" : 5432,
-  "db.Name" : "asecard-test",
-  "db.User" : "aaron",
-  "db.Pass" : "kaas123",
-  "db.MaxC" : 5
+  "http.port" : <int>,
+  "db.host" : "",
+  "db.port" : <int>,
+  "db.name" : "",
+  "db.user" : "",
+  "db.pass" : "",
+  "db.maxc" : <int>,
+  "jwt.publickey" : "",
+  "jwt.exptime" : <int>
 }

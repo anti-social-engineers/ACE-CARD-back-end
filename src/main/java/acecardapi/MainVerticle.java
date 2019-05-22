@@ -8,17 +8,23 @@
 
 package acecardapi;
 
+import acecardapi.auth.IReactiveAuth;
+import acecardapi.auth.PBKDF2Strategy;
+import acecardapi.auth.ReactiveAuth;
+import acecardapi.handlers.LoginHandler;
+import acecardapi.handlers.RegistrationHandler;
+import acecardapi.handlers.UserHandler;
 import io.reactiverse.pgclient.PgClient;
 import io.reactiverse.pgclient.PgPool;
 import io.reactiverse.pgclient.PgPoolOptions;
-import io.reactiverse.pgclient.PgRowSet;
-import io.vertx.config.ConfigRetriever;
-import io.vertx.config.ConfigRetrieverOptions;
-import io.vertx.config.ConfigStoreOptions;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
-import io.vertx.core.json.JsonObject;
+import io.vertx.ext.auth.PubSecKeyOptions;
+import io.vertx.ext.auth.jwt.JWTAuth;
+import io.vertx.ext.auth.jwt.JWTAuthOptions;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.handler.BodyHandler;
+import io.vertx.ext.web.handler.JWTAuthHandler;
 
 public class MainVerticle extends AbstractVerticle {
 
@@ -41,18 +47,52 @@ public class MainVerticle extends AbstractVerticle {
     PgPool dbClient = PgClient.pool(vertx, options);
 
 
-    // Test DB
-    dbClient.query("SELECT * FROM users", ar -> {
-      if (ar.succeeded()) {
-        PgRowSet result = ar.result();
-        System.out.println("Got " + result.size() + " rows ");
-      } else {
-        System.out.println("Failure: " + ar.cause().getMessage());
-      }
+    // Create the authentication provider
+    ReactiveAuth authProvider = IReactiveAuth.create(vertx, dbClient);
+    authProvider.setAuthenticationQuery("SELECT id, password, password_salt FROM users WHERE email = $1");
+    authProvider.setHashStrategy(new PBKDF2Strategy(vertx));
 
-      // Now close the pool
-      dbClient.close();
-    });
+
+    /*
+    Setup JWT
+     */
+
+    JWTAuth jwtProvider = JWTAuth.create(vertx, new JWTAuthOptions()
+      .addPubSecKey(new PubSecKeyOptions()
+        .setAlgorithm("HS256")
+        .setPublicKey(config().getString("jwt.publickey", "keyboard cat"))
+        .setSymmetric(true)));
+
+
+    /*
+    Handlers
+     */
+
+    // UserHandler
+    UserHandler userHandler = new UserHandler(dbClient,config());
+    // RegistrationHandler
+    RegistrationHandler registrationHandler = new RegistrationHandler(dbClient, config(), authProvider);
+    // LoginHandler
+    LoginHandler loginHandler = new LoginHandler(dbClient, config(), authProvider, jwtProvider);
+
+
+    /*
+    Routes
+     */
+
+    // Protected apis (All these endpoints require JWT)
+    // TODO: Beautify?
+    router.route("/api/users/*").handler(JWTAuthHandler.create(jwtProvider));
+
+    //// Handle register/login endpoints ////
+    router.route("/api/register").handler(BodyHandler.create());
+    router.route("/api/login").handler(BodyHandler.create());
+    router.route("/api/register").handler(registrationHandler::registerUser);
+    router.route("/api/login").handler(loginHandler::login);
+
+    //// User Management ////
+    router.get("/api/users").handler(userHandler::getUsers);
+
 
     // Create the HttpServer
     vertx.createHttpServer().requestHandler(router).listen(
