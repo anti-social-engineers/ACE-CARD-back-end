@@ -11,7 +11,7 @@ package acecardapi.apierrors;
 import io.vertx.core.json.JsonObject;
 
 public class EmailNotVerifiedViolation extends ApiError {
-  public EmailNotVerifiedViolation(Boolean success, String type) {
-    super(success, type);
+  public EmailNotVerifiedViolation(String type) {
+    super(false, type);
   }
 }

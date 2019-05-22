@@ -6,8 +6,8 @@ public abstract class FieldViolation extends ApiError {
 
   String field;
 
-  public FieldViolation(Boolean success, String message) {
-    super(success, message);
+  public FieldViolation(Boolean success, String type) {
+    super(success, type);
   }
 
   @Override

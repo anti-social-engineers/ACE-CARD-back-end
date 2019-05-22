@@ -91,7 +91,7 @@ public class LoginHandler extends AbstractCustomHandler{
               if (!row.getBoolean("is_email_verified")) {
                 // TODO: Handle sending new activation email or something....
 
-                EmailNotVerifiedViolation error = new EmailNotVerifiedViolation(false, "email_not_activated");
+                EmailNotVerifiedViolation error = new EmailNotVerifiedViolation("email_not_activated");
                 context.response()
                   .putHeader("content-type", "application/json; charset=utf-8"
                   ).setStatusCode(403).end(Json.encodePrettily(error.errorJson()));
