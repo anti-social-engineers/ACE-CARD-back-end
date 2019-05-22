@@ -15,9 +15,9 @@ public class ApiError {
   private Boolean success;
   private String type;
 
-  public ApiError(Boolean success, String message) {
+  public ApiError(Boolean success, String type) {
     this.success = success;
-    this.type = message;
+    this.type = type;
   }
 
   public JsonObject errorJson() {
