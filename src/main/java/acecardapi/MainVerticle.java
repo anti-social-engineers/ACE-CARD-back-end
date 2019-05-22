@@ -25,6 +25,8 @@ import io.vertx.ext.auth.jwt.JWTAuthOptions;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.JWTAuthHandler;
+import io.vertx.redis.RedisClient;
+import io.vertx.redis.RedisOptions;
 
 public class MainVerticle extends AbstractVerticle {
 
@@ -54,9 +56,33 @@ public class MainVerticle extends AbstractVerticle {
 
 
     /*
+    Setup Redis
+     */
+    RedisClient redisClient = RedisClient.create(vertx,
+      new RedisOptions().setHost("127.0.0.1"));
+
+    redisClient.set("testKeyOne", "ARANDOMVALUE", r -> {
+      if (r.succeeded()) {
+        System.out.println("KeyStored");
+        redisClient.get("testKeyOne", r2 -> {
+          if (r2.succeeded()) {
+            System.out.println(r2.result());
+          }
+          else {
+            System.out.println(r2.cause().toString());
+          }
+        });
+      }
+      else {
+        System.out.println(r.cause().toString());
+        System.out.println("FAILURE");
+      }
+    });
+
+
+    /*
     Setup JWT
      */
-
     JWTAuth jwtProvider = JWTAuth.create(vertx, new JWTAuthOptions()
       .addPubSecKey(new PubSecKeyOptions()
         .setAlgorithm("HS256")

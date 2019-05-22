@@ -12,21 +12,23 @@ import acecardapi.apierrors.InputFormatViolation;
 import acecardapi.apierrors.UniqueViolation;
 import acecardapi.auth.ReactiveAuth;
 import acecardapi.models.Users;
+import acecardapi.utils.RandomToken;
 import io.reactiverse.pgclient.PgException;
 import io.reactiverse.pgclient.PgPool;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
-
-import java.util.ArrayList;
+import io.vertx.redis.RedisClient;
 
 public class RegistrationHandler extends AbstractCustomHandler {
 
   private ReactiveAuth authProvider;
+  private RedisClient redisClient;
 
-  public RegistrationHandler(PgPool dbClient, JsonObject config, ReactiveAuth authProvider) {
+  public RegistrationHandler(PgPool dbClient, JsonObject config, ReactiveAuth authProvider, RedisClient redisClient) {
     super(dbClient, config);
     this.authProvider = authProvider;
+    this.redisClient = redisClient;
   }
 
   public void registerUser(RoutingContext context) {
@@ -65,6 +67,13 @@ public class RegistrationHandler extends AbstractCustomHandler {
 
     dbClient.preparedQuery("INSERT INTO users (id, email, password, password_salt) VALUES ($1, $2, $3, $4)", users.toTuple(), res -> {
       if (res.succeeded()) {
+        // TODO: Create verification mail
+
+        RandomToken token = new RandomToken(32);
+        System.out.println(token.nextString());
+
+        // TODO: Redis check if key exists, if so retry...
+
         context.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(201).end();
       }
 

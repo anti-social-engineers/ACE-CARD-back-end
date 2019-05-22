@@ -29,5 +29,6 @@ Example:
   "db.pass" : "",
   "db.maxc" : <int>,
   "jwt.publickey" : "",
-  "jwt.exptime" : <int>
+  "jwt.exptime" : <int>,
+  "redis.pass" : ""
 }
