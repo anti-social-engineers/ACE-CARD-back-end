@@ -19,9 +19,15 @@ import io.reactiverse.pgclient.PgPool;
 import io.reactiverse.pgclient.PgPoolOptions;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
+import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
+import io.vertx.core.dns.AddressResolverOptions;
 import io.vertx.ext.auth.PubSecKeyOptions;
 import io.vertx.ext.auth.jwt.JWTAuth;
 import io.vertx.ext.auth.jwt.JWTAuthOptions;
+import io.vertx.ext.mail.MailClient;
+import io.vertx.ext.mail.MailConfig;
+import io.vertx.ext.mail.StartTLSOptions;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.JWTAuthHandler;
@@ -29,6 +35,13 @@ import io.vertx.redis.RedisClient;
 import io.vertx.redis.RedisOptions;
 
 public class MainVerticle extends AbstractVerticle {
+
+    Vertx vertx = Vertx.vertx(new VertxOptions().
+      setAddressResolverOptions(
+        new AddressResolverOptions().
+          addServer("8.8.8.8").
+          addServer("8.8.4.4").setQueryTimeout(15000))
+    );
 
   @Override
   public void start(Future<Void> startFuture) throws Exception {
@@ -49,6 +62,20 @@ public class MainVerticle extends AbstractVerticle {
     PgPool dbClient = PgClient.pool(vertx, options);
 
 
+    /*
+    Setup Email Client
+     */
+    MailConfig config = new MailConfig();
+    config.setHostname("smtp.gmail.com");
+    config.setPort(465);
+    config.setStarttls(StartTLSOptions.REQUIRED);
+    config.setUsername("antisocialengineers@gmail.com");
+    config.setPassword("Hogeschool123");
+    config.setTrustAll(true);
+    config.setAuthMethods("PLAIN");
+    MailClient mailClient = MailClient.createNonShared(vertx, config);
+
+
     // Create the authentication provider
     ReactiveAuth authProvider = IReactiveAuth.create(vertx, dbClient);
     authProvider.setAuthenticationQuery("SELECT id, password, password_salt FROM users WHERE email = $1");
@@ -64,7 +91,7 @@ public class MainVerticle extends AbstractVerticle {
     redisClient.set("testKeyOne", "ARANDOMVALUE", r -> {
       if (r.succeeded()) {
         System.out.println("KeyStored");
-        redisClient.get("testKeyOne", r2 -> {
+        redisClient.exists("testKeyOne", r2 -> {
           if (r2.succeeded()) {
             System.out.println(r2.result());
           }
@@ -97,7 +124,7 @@ public class MainVerticle extends AbstractVerticle {
     // UserHandler
     UserHandler userHandler = new UserHandler(dbClient,config());
     // RegistrationHandler
-    RegistrationHandler registrationHandler = new RegistrationHandler(dbClient, config(), authProvider);
+    RegistrationHandler registrationHandler = new RegistrationHandler(dbClient, config(), authProvider, redisClient, mailClient);
     // LoginHandler
     LoginHandler loginHandler = new LoginHandler(dbClient, config(), authProvider, jwtProvider);
 
