@@ -36,12 +36,12 @@ import io.vertx.redis.RedisOptions;
 
 public class MainVerticle extends AbstractVerticle {
 
-    Vertx vertx = Vertx.vertx(new VertxOptions().
-      setAddressResolverOptions(
-        new AddressResolverOptions().
-          addServer("8.8.8.8").
-          addServer("8.8.4.4").setQueryTimeout(15000))
-    );
+//    Vertx vertx = Vertx.vertx(new VertxOptions().
+//      setAddressResolverOptions(
+//        new AddressResolverOptions().
+//          addServer("8.8.8.8").
+//          addServer("8.8.4.4").setQueryTimeout(15000))
+//    );
 
   @Override
   public void start(Future<Void> startFuture) throws Exception {
@@ -67,7 +67,7 @@ public class MainVerticle extends AbstractVerticle {
      */
     MailConfig config = new MailConfig();
     config.setHostname("smtp.gmail.com");
-    config.setPort(465);
+    config.setPort(587);
     config.setStarttls(StartTLSOptions.REQUIRED);
     config.setUsername("antisocialengineers@gmail.com");
     config.setPassword("Hogeschool123");
