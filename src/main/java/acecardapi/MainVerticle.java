@@ -11,6 +11,7 @@ package acecardapi;
 import acecardapi.auth.IReactiveAuth;
 import acecardapi.auth.PBKDF2Strategy;
 import acecardapi.auth.ReactiveAuth;
+import acecardapi.handlers.ActivationHandler;
 import acecardapi.handlers.LoginHandler;
 import acecardapi.handlers.RegistrationHandler;
 import acecardapi.handlers.UserHandler;
@@ -104,7 +105,7 @@ public class MainVerticle extends AbstractVerticle {
     JWTAuth jwtProvider = JWTAuth.create(vertx, new JWTAuthOptions()
       .addPubSecKey(new PubSecKeyOptions()
         .setAlgorithm("HS256")
-        .setPublicKey(config().getString("jwt.publickey", "keyboard cat"))
+        .setPublicKey(config().getString("jwt.publickey"))
         .setSymmetric(true)));
 
 
@@ -118,6 +119,8 @@ public class MainVerticle extends AbstractVerticle {
     RegistrationHandler registrationHandler = new RegistrationHandler(dbClient, config(), authProvider, redisClient, mailClient);
     // LoginHandler
     LoginHandler loginHandler = new LoginHandler(dbClient, config(), authProvider, jwtProvider);
+    // ActivationHandler
+    ActivationHandler activationHandler = new ActivationHandler(dbClient, config(), redisClient);
 
 
     /*
@@ -131,8 +134,9 @@ public class MainVerticle extends AbstractVerticle {
     //// Handle register/login endpoints ////
     router.route("/api/register").handler(BodyHandler.create());
     router.route("/api/login").handler(BodyHandler.create());
-    router.route("/api/register").handler(registrationHandler::registerUser);
-    router.route("/api/login").handler(loginHandler::login);
+    router.post("/api/register").handler(registrationHandler::registerUser);
+    router.post("/api/login").handler(loginHandler::login);
+    router.get("/api/activate/:activationkey").handler(activationHandler::activateUser);
 
     //// User Management ////
     router.get("/api/users").handler(userHandler::getUsers);

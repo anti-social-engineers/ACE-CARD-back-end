@@ -54,5 +54,4 @@ public class UserHandler extends AbstractCustomHandler{
       }
     });
   }
-
 }

@@ -120,6 +120,7 @@ public class RegistrationHandler extends AbstractCustomHandler {
             UniqueViolation error = new UniqueViolation("email_address");
 
             context.response().setStatusCode(409).putHeader("content-type", "application/json; charset=utf-8").end(Json.encode(error.errorJson()));
+            return;
           }
         }
         System.out.println(res.cause().toString());
@@ -150,7 +151,13 @@ public class RegistrationHandler extends AbstractCustomHandler {
 
     redisClient.set(tokenValue, userId.toString(), res -> {
       if (res.succeeded()) {
-        resultHandler.handle(Future.succeededFuture(tokenValue));
+        redisClient.expire(tokenValue, 86400, expireRes -> {
+          if (expireRes.succeeded()) {
+            resultHandler.handle(Future.succeededFuture(tokenValue));
+          } else {
+            resultHandler.handle(Future.failedFuture(""));
+          }
+        });
       } else {
         resultHandler.handle(Future.failedFuture(""));
       }
