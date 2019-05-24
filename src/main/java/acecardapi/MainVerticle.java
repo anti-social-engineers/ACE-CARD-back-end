@@ -36,13 +36,6 @@ import io.vertx.redis.RedisOptions;
 
 public class MainVerticle extends AbstractVerticle {
 
-//    Vertx vertx = Vertx.vertx(new VertxOptions().
-//      setAddressResolverOptions(
-//        new AddressResolverOptions().
-//          addServer("8.8.8.8").
-//          addServer("8.8.4.4").setQueryTimeout(15000))
-//    );
-
   @Override
   public void start(Future<Void> startFuture) throws Exception {
 
@@ -66,13 +59,11 @@ public class MainVerticle extends AbstractVerticle {
     Setup Email Client
      */
     MailConfig config = new MailConfig();
-    config.setHostname("smtp.gmail.com");
-    config.setPort(587);
+    config.setHostname(config().getString("mail.host"));
+    config.setPort(config().getInteger("mail.port"));
     config.setStarttls(StartTLSOptions.REQUIRED);
-    config.setUsername("antisocialengineers@gmail.com");
-    config.setPassword("Hogeschool123");
-    config.setTrustAll(true);
-    config.setAuthMethods("PLAIN");
+    config.setUsername(config().getString("mail.user"));
+    config.setPassword(config().getString("mail.pass"));
     MailClient mailClient = MailClient.createNonShared(vertx, config);
 
 
@@ -86,7 +77,7 @@ public class MainVerticle extends AbstractVerticle {
     Setup Redis
      */
     RedisClient redisClient = RedisClient.create(vertx,
-      new RedisOptions().setHost("127.0.0.1"));
+      new RedisOptions().setHost(config().getString("redis.host", "127.0.0.1")));
 
     redisClient.set("testKeyOne", "ARANDOMVALUE", r -> {
       if (r.succeeded()) {

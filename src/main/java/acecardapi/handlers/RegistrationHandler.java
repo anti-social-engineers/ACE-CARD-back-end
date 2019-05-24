@@ -78,7 +78,6 @@ public class RegistrationHandler extends AbstractCustomHandler {
 
     dbClient.preparedQuery("INSERT INTO users (id, email, password, password_salt) VALUES ($1, $2, $3, $4)", users.toTuple(), res -> {
       if (res.succeeded()) {
-        // TODO: Create verification mail
 
         RandomToken token = new RandomToken(32);
 
@@ -89,6 +88,7 @@ public class RegistrationHandler extends AbstractCustomHandler {
 
             MailMessage message = buildRegistrationMail(users.getEmail(), key);
 
+            // TODO: Response pas na mail?
             mailClient.sendMail(message, result -> {
               if (result.succeeded()) {
 
@@ -122,6 +122,7 @@ public class RegistrationHandler extends AbstractCustomHandler {
             context.response().setStatusCode(409).putHeader("content-type", "application/json; charset=utf-8").end(Json.encode(error.errorJson()));
           }
         }
+        System.out.println(res.cause().toString());
         context.response().setStatusCode(400).putHeader("content-type", "application/json; charset=utf-8").end(Json.encode("Something went wrong."));
       }
     });
@@ -168,6 +169,7 @@ public class RegistrationHandler extends AbstractCustomHandler {
     MailMessage message = new MailMessage();
     message.setFrom("noreply@aceofclubs.nl");
     message.setTo(destinationMail);
+    message.setSubject("Email verificatie - ACE Card.");
     message.setHtml(html);
 
     return message;
