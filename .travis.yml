@@ -7,3 +7,8 @@ branches:
   only:
     - master
     - staging
+services:
+  - postgresql
+before_script:
+  - psql -c "CREATE DATABASE 'ase-acecard-test-database';" -U postgres
+  - psql -c "CREATE USER acecard WITH PASSWORD 'acecard';" -U postgres
