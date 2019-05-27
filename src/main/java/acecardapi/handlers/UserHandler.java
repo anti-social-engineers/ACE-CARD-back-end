@@ -42,7 +42,8 @@ public class UserHandler extends AbstractCustomHandler{
 
         context.response()
           .putHeader("content-type", "application/json; charset=utf-8"
-          ).end(Json.encodePrettily(jsonArray));
+          ).putHeader("Access-Control-Allow-Origin", "*")
+          .putHeader("Access-Control-Allow-Methods","GET, POST, OPTIONS").end(Json.encodePrettily(jsonArray));
 
       } else {
         System.out.println("Failure: " + ar.cause().getMessage());
