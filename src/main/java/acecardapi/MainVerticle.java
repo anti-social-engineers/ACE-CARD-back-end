@@ -24,6 +24,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.dns.AddressResolverOptions;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.ext.auth.PubSecKeyOptions;
 import io.vertx.ext.auth.jwt.JWTAuth;
 import io.vertx.ext.auth.jwt.JWTAuthOptions;
@@ -36,6 +37,9 @@ import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.JWTAuthHandler;
 import io.vertx.redis.RedisClient;
 import io.vertx.redis.RedisOptions;
+
+import java.util.HashSet;
+import java.util.Set;
 
 public class MainVerticle extends AbstractVerticle {
 
@@ -130,14 +134,29 @@ public class MainVerticle extends AbstractVerticle {
      */
 
     // CORS
+    Set<String> allowedHeaders = new HashSet<>();
+    allowedHeaders.add("x-requested-with");
+    allowedHeaders.add("Access-Control-Allow-Origin");
+    allowedHeaders.add("origin");
+    allowedHeaders.add("Content-Type");
+    allowedHeaders.add("accept");
+
+    Set<HttpMethod> allowedMethods = new HashSet<>();
+    allowedMethods.add(HttpMethod.GET);
+    allowedMethods.add(HttpMethod.POST);
+    allowedMethods.add(HttpMethod.DELETE);
+    allowedMethods.add(HttpMethod.PATCH);
+    allowedMethods.add(HttpMethod.OPTIONS);
+    allowedMethods.add(HttpMethod.PUT);
+
     router.route().handler(CorsHandler.create(".*")
-      .allowedMethod(io.vertx.core.http.HttpMethod.GET)
-      .allowedMethod(io.vertx.core.http.HttpMethod.POST)
-      .allowCredentials(true)
-      .allowedHeader("Access-Control-Allow-Method")
-      .allowedHeader("Access-Control-Allow-Origin")
-      .allowedHeader("Access-Control-Allow-Credentials")
-      .allowedHeader("Content-Type"));
+      .allowedHeaders(allowedHeaders)
+      .allowedMethods(allowedMethods));
+
+    router.get("/").handler(context1 -> {
+      HttpServerResponse httpServerResponse = context1.response();
+      httpServerResponse.putHeader("content-type", "application/json").end("Success");
+    });
 
     // Protected apis (All these endpoints require JWT)
     // TODO: Beautify?
