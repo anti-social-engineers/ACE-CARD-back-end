@@ -130,7 +130,14 @@ public class MainVerticle extends AbstractVerticle {
      */
 
     // CORS
-    router.route("/api/*").handler(CorsHandler.create(".*").allowedMethod(HttpMethod.GET));
+    router.route("/api/*").handler(CorsHandler.create(".*")
+      .allowedMethod(io.vertx.core.http.HttpMethod.GET)
+      .allowedMethod(io.vertx.core.http.HttpMethod.POST)
+      .allowCredentials(true)
+      .allowedHeader("Access-Control-Allow-Method")
+      .allowedHeader("Access-Control-Allow-Origin")
+      .allowedHeader("Access-Control-Allow-Credentials")
+      .allowedHeader("Content-Type"));
 
     // Protected apis (All these endpoints require JWT)
     // TODO: Beautify?
