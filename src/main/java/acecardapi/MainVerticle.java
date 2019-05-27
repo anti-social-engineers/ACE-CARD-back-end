@@ -130,7 +130,7 @@ public class MainVerticle extends AbstractVerticle {
      */
 
     // CORS
-    router.route("api/*").handler(CorsHandler.create(".*").allowedMethod(HttpMethod.GET));
+    router.route("/api/*").handler(CorsHandler.create(".*").allowedMethod(HttpMethod.GET));
 
     // Protected apis (All these endpoints require JWT)
     // TODO: Beautify?
