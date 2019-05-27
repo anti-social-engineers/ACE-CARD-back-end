@@ -29,5 +29,11 @@ Example:
   "db.pass" : "",
   "db.maxc" : <int>,
   "jwt.publickey" : "",
-  "jwt.exptime" : <int>
+  "jwt.exptime" : <int>,
+  "redis.pass" : "",
+  "mail.host" : "",
+  "mail.port" : <int>,
+  "mail.user" : "",
+  "mail.pass" : "",
+  "registration.code_expire_time" : <int>
 }

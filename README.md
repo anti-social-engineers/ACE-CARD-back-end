@@ -25,6 +25,10 @@ To run your application:
 * main class: io.vertx.core.Launcher
 * run acecardapi.MainVerticle -conf src/main/conf/config.json
 
+## Packaging without running test
+* mvnw -Dmaven.test.skip=true package
+* mvnw package -DskipTests
+
 ## Other
 ### Official Vert.x documentation/support
 

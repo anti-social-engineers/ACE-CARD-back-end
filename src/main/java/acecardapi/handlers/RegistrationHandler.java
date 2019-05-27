@@ -12,21 +12,34 @@ import acecardapi.apierrors.InputFormatViolation;
 import acecardapi.apierrors.UniqueViolation;
 import acecardapi.auth.ReactiveAuth;
 import acecardapi.models.Users;
+import acecardapi.utils.RandomToken;
 import io.reactiverse.pgclient.PgException;
 import io.reactiverse.pgclient.PgPool;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.mail.MailClient;
+import io.vertx.ext.mail.MailMessage;
+import io.vertx.ext.mail.MailResult;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.redis.RedisClient;
 
-import java.util.ArrayList;
+import java.util.UUID;
 
 public class RegistrationHandler extends AbstractCustomHandler {
 
   private ReactiveAuth authProvider;
+  private RedisClient redisClient;
+  private MailClient mailClient;
 
-  public RegistrationHandler(PgPool dbClient, JsonObject config, ReactiveAuth authProvider) {
+  public RegistrationHandler(PgPool dbClient, JsonObject config, ReactiveAuth authProvider, RedisClient redisClient,
+                             MailClient mailClient) {
     super(dbClient, config);
     this.authProvider = authProvider;
+    this.redisClient = redisClient;
+    this.mailClient = mailClient;
   }
 
   public void registerUser(RoutingContext context) {
@@ -48,7 +61,7 @@ public class RegistrationHandler extends AbstractCustomHandler {
 
       }
 
-      context.response().setStatusCode(500).end();
+      context.response().setStatusCode(500).end("");
 
     }
 
@@ -65,10 +78,40 @@ public class RegistrationHandler extends AbstractCustomHandler {
 
     dbClient.preparedQuery("INSERT INTO users (id, email, password, password_salt) VALUES ($1, $2, $3, $4)", users.toTuple(), res -> {
       if (res.succeeded()) {
-        context.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(201).end();
-      }
 
-      else {
+        RandomToken token = new RandomToken(32);
+
+        generateRedisKey(token, users.getId(), redisKeyResult -> {
+
+          if (redisKeyResult.succeeded()) {
+            String key = redisKeyResult.result();
+
+            MailMessage message = buildRegistrationMail(users.getEmail(), key);
+
+            context.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(201).end();
+            // TODO: Response pas na mail?
+            mailClient.sendMail(message, result -> {
+              if (result.succeeded()) {
+
+                System.out.println(result.result());
+                return;
+
+
+              } else {
+
+                // Account created, but mail did not get send.
+                result.cause().printStackTrace();
+                System.out.println(result.cause().toString());
+                return;
+
+              }
+            });
+
+          } else {
+            context.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(500).end();
+          }
+        });
+      } else {
 
         if (res.cause() instanceof PgException) {
           String error_Code = ((PgException) res.cause()).getCode();
@@ -79,10 +122,65 @@ public class RegistrationHandler extends AbstractCustomHandler {
             UniqueViolation error = new UniqueViolation("email_address");
 
             context.response().setStatusCode(409).putHeader("content-type", "application/json; charset=utf-8").end(Json.encode(error.errorJson()));
+            return;
           }
         }
+        System.out.println(res.cause().toString());
         context.response().setStatusCode(400).putHeader("content-type", "application/json; charset=utf-8").end(Json.encode("Something went wrong."));
       }
     });
+  }
+
+  private void generateRedisKey(RandomToken token, UUID userId, Handler<AsyncResult<String>> resultHandler) {
+
+    String tokenValue = token.nextString();
+
+    redisClient.exists(tokenValue, redisExist -> {
+      if (redisExist.succeeded()) {
+        if (redisExist.result() == 1) {
+          generateRedisKey(token, userId, resultHandler);
+        }
+        else {
+          insertRedisKey(tokenValue, userId, resultHandler);
+        }
+      } else {
+        resultHandler.handle(Future.failedFuture(""));
+      }
+    });
+  }
+
+  private void insertRedisKey(String tokenValue, UUID userId, Handler<AsyncResult<String>> resultHandler) {
+
+    redisClient.set(tokenValue, userId.toString(), res -> {
+      if (res.succeeded()) {
+        redisClient.expire(tokenValue, this.config.getLong("registration.code_expire_time", 32400L), expireRes -> {
+          if (expireRes.succeeded()) {
+            resultHandler.handle(Future.succeededFuture(tokenValue));
+          } else {
+            resultHandler.handle(Future.failedFuture(""));
+          }
+        });
+      } else {
+        resultHandler.handle(Future.failedFuture(""));
+      }
+    });
+
+  }
+
+  private MailMessage buildRegistrationMail(String destinationMail, String registrationKey) {
+
+    String html = String.format("" +
+      "Beste klant, <br/><br/>" +
+      "Bedankt voor het registreren van uw account. <br/>" +
+      "U moet uw account nog activeren, dit kunt u doen door op de onderstaande link te klikken: <br/>" +
+      "%s", registrationKey);
+
+    MailMessage message = new MailMessage();
+    message.setFrom("noreply@aceofclubs.nl");
+    message.setTo(destinationMail);
+    message.setSubject("Email verificatie - ACE Card.");
+    message.setHtml(html);
+
+    return message;
   }
 }

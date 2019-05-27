@@ -99,7 +99,7 @@ public class LoginHandler extends AbstractCustomHandler{
 
                 String token = jwtProvider.generateToken(new JsonObject()
                     .put("sub", logged_user.principal().getString("id")),
-                  new JWTOptions().setExpiresInSeconds(config.getInteger("jwt.exptime")));
+                  new JWTOptions().setExpiresInSeconds(config.getInteger("jwt.exptime", 32400)));
 
                 context.response().setStatusCode(200).end(Json.encodePrettily(new JwtToken(token)));
               }
