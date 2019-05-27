@@ -96,5 +96,23 @@ public class TestMainVerticle {
         }
       });
   }
+
+  @Test
+  @DisplayName("[POST] /api/register Register an user")
+  @Timeout(value = 30, timeUnit = TimeUnit.SECONDS)
+  void test_201_register(Vertx vertx, VertxTestContext testContext) {
+    client
+      .post(8888, "localhost", "/api/register")
+      .sendJsonObject(new JsonObject()
+        .put("email", "noreply@aceofclubs.nl")
+        .put("password", "A-Bad-Password"), res -> {
+        if (res.succeeded()) {
+          HttpResponse<Buffer> response = res.result();
+
+          assertEquals(201, response.statusCode());
+          testContext.completeNow();
+        }
+      });
+  }
 }
 
