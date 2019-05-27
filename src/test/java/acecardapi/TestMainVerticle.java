@@ -78,5 +78,23 @@ public class TestMainVerticle {
         }
       });
   }
+
+  @Test
+  @DisplayName("[POST] /api/register with already in use email should return a 409")
+  @Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
+  void test_409_register(Vertx vertx, VertxTestContext testContext) {
+    client
+      .post(8888, "localhost", "/api/register")
+      .sendJsonObject(new JsonObject()
+        .put("email", "aaron.beetstra@outlook.com")
+        .put("password", "A-Bad-Password"), res -> {
+        if (res.succeeded()) {
+          HttpResponse<Buffer> response = res.result();
+
+          assertEquals(409, response.statusCode());
+          testContext.completeNow();
+        }
+      });
+  }
 }
 

@@ -47,9 +47,9 @@ public class MainVerticle extends AbstractVerticle {
     PgPoolOptions options = new PgPoolOptions()
       .setPort(config().getInteger("db.port", 5432))
       .setHost(config().getString("db.host", "127.0.0.1"))
-      .setDatabase(config().getString("db.name", "asecard"))
-      .setUser(config().getString("db.user", "asecard"))
-      .setPassword(config().getString("db.pass", "asecard"))
+      .setDatabase(config().getString("db.name", "ase_acecard_test_database"))
+      .setUser(config().getString("db.user", "acecard"))
+      .setPassword(config().getString("db.pass", "acecard"))
       .setMaxSize(config().getInteger("db.maxc", 5));
 
     // Create the pooled client
