@@ -136,7 +136,7 @@ public class TestMainVerticle {
 
   @Test
   @DisplayName("[POST] /api/login Authorized request")
-  @Timeout(value = 30, timeUnit = TimeUnit.SECONDS)
+  @Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
   void test_200_login(Vertx vertx, VertxTestContext testContext) {
     client
       .post(8888, "localhost", "/api/login")

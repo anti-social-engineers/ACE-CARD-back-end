@@ -71,8 +71,6 @@ public class LoginHandler extends AbstractCustomHandler{
 
         UUID id = UUID.fromString(logged_user.principal().getString("id"));
 
-        System.out.println(id.toString());
-
         // Check if the user has a verified email:
         dbClient.preparedQuery("SELECT * FROM users WHERE id=$1", Tuple.of(id), res -> {
           if (res.succeeded()) {
@@ -90,8 +88,6 @@ public class LoginHandler extends AbstractCustomHandler{
               // Check if the user has activated their email:
               Row row = result.iterator().next();
 
-              System.out.println(row.getBoolean("is_email_verified"));
-
               if (!row.getBoolean("is_email_verified")) {
                 // TODO: Handle sending new activation email or something....
 
@@ -103,7 +99,7 @@ public class LoginHandler extends AbstractCustomHandler{
 
                 String token = jwtProvider.generateToken(new JsonObject()
                     .put("sub", logged_user.principal().getString("id")),
-                  new JWTOptions().setExpiresInSeconds(config.getInteger("jwt.exptime")));
+                  new JWTOptions().setExpiresInSeconds(config.getInteger("jwt.exptime", 32400)));
 
                 context.response().setStatusCode(200).end(Json.encodePrettily(new JwtToken(token)));
               }
