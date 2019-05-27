@@ -149,7 +149,7 @@ public class MainVerticle extends AbstractVerticle {
     allowedMethods.add(HttpMethod.OPTIONS);
     allowedMethods.add(HttpMethod.PUT);
 
-    router.route().handler(CorsHandler.create(".*")
+    router.route().handler(CorsHandler.create("*")
       .allowedHeaders(allowedHeaders)
       .allowedMethods(allowedMethods));
 
