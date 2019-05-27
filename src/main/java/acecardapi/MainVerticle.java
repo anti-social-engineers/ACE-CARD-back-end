@@ -130,7 +130,7 @@ public class MainVerticle extends AbstractVerticle {
      */
 
     // CORS
-    router.route("/api/*").handler(CorsHandler.create(".*")
+    router.route().handler(CorsHandler.create(".*")
       .allowedMethod(io.vertx.core.http.HttpMethod.GET)
       .allowedMethod(io.vertx.core.http.HttpMethod.POST)
       .allowCredentials(true)
