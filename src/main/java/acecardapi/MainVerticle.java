@@ -134,29 +134,21 @@ public class MainVerticle extends AbstractVerticle {
      */
 
     // CORS
-//    Set<String> allowedHeaders = new HashSet<>();
-//    allowedHeaders.add("x-requested-with");
-//    allowedHeaders.add("Access-Control-Allow-Origin");
-//    allowedHeaders.add("origin");
-//    allowedHeaders.add("Content-Type");
-//    allowedHeaders.add("accept");
-//
-//    Set<HttpMethod> allowedMethods = new HashSet<>();
-//    allowedMethods.add(HttpMethod.GET);
-//    allowedMethods.add(HttpMethod.POST);
-//    allowedMethods.add(HttpMethod.DELETE);
-//    allowedMethods.add(HttpMethod.PATCH);
-//    allowedMethods.add(HttpMethod.OPTIONS);
-//    allowedMethods.add(HttpMethod.PUT);
-//
-//    router.route().handler(CorsHandler.create("*")
-//      .allowedHeaders(allowedHeaders)
-//      .allowedMethods(allowedMethods));
-//
-//    router.get("/").handler(context1 -> {
-//      HttpServerResponse httpServerResponse = context1.response();
-//      httpServerResponse.putHeader("content-type", "application/json").end("Success");
-//    });
+    Set<String> allowedHeaders = new HashSet<>();
+    allowedHeaders.add("x-requested-with");
+    allowedHeaders.add("Access-Control-Allow-Origin");
+    allowedHeaders.add("origin");
+    allowedHeaders.add("Content-Type");
+    allowedHeaders.add("accept");
+    allowedHeaders.add("Authorization");
+
+    Set<HttpMethod> allowedMethods = new HashSet<>();
+    allowedMethods.add(HttpMethod.GET);
+    allowedMethods.add(HttpMethod.POST);
+
+    router.route().handler(CorsHandler.create("*")
+      .allowedHeaders(allowedHeaders)
+      .allowedMethods(allowedMethods));
 
     // Protected apis (All these endpoints require JWT)
     // TODO: Beautify?
