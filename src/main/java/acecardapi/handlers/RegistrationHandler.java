@@ -88,19 +88,21 @@ public class RegistrationHandler extends AbstractCustomHandler {
 
             MailMessage message = buildRegistrationMail(users.getEmail(), key);
 
+            context.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(201).end();
             // TODO: Response pas na mail?
             mailClient.sendMail(message, result -> {
               if (result.succeeded()) {
 
                 System.out.println(result.result());
-                context.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(201).end();
+                return;
+                
 
               } else {
 
                 // Account created, but mail did not get send.
                 result.cause().printStackTrace();
                 System.out.println(result.cause().toString());
-                context.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(500).end();
+                return;
 
               }
             });
