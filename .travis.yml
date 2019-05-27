@@ -13,8 +13,6 @@ services:
 before_script:
   - psql -c "CREATE DATABASE ase_acecard_test_database;" -U postgres
   - psql -c "CREATE USER acecard WITH PASSWORD 'acecard';" -U postgres
-  - psql -c 'GRANT CONNECT ON DATABASE ase_acecard_test_database TO acecard;' -U postgres
-  - psql -c 'GRANT USAGE ON SCHEMA public TO acecard;' -U postgres
-  - psql -c 'GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO acecard;' -U postgres
+  - psql -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO acecard;' -U postgres
   - psql -d  ase_acecard_test_database -a -f sql/setup-database.sql
   - psql -d  ase_acecard_test_database -a -f sql/insert-database.sql
