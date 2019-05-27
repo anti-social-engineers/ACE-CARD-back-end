@@ -95,7 +95,7 @@ public class RegistrationHandler extends AbstractCustomHandler {
 
                 System.out.println(result.result());
                 return;
-                
+
 
               } else {
 

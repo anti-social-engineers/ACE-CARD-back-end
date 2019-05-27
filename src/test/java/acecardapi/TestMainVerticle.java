@@ -114,5 +114,43 @@ public class TestMainVerticle {
         }
       });
   }
+
+  @Test
+  @DisplayName("[POST] /api/login Unauthorized request")
+  @Timeout(value = 30, timeUnit = TimeUnit.SECONDS)
+  void test_401_login(Vertx vertx, VertxTestContext testContext) {
+    client
+      .post(8888, "localhost", "/api/login")
+      .sendJsonObject(new JsonObject()
+        .put("email", "noreply@aceofclubs.nl")
+        .put("password", "A-Bad-Wrong-Password"), res -> {
+        if (res.succeeded()) {
+          HttpResponse<Buffer> response = res.result();
+
+          assertEquals(401, response.statusCode());
+          testContext.completeNow();
+        }
+      });
+  }
+
+
+  @Test
+  @DisplayName("[POST] /api/login Authorized request")
+  @Timeout(value = 30, timeUnit = TimeUnit.SECONDS)
+  void test_200_login(Vertx vertx, VertxTestContext testContext) {
+    client
+      .post(8888, "localhost", "/api/login")
+      .sendJsonObject(new JsonObject()
+        .put("email", "aaron.beetstra@outlook.com")
+        .put("password", "helloworld123"), res -> {
+        if (res.succeeded()) {
+          HttpResponse<Buffer> response = res.result();
+
+          assertEquals(200, response.statusCode());
+          testContext.completeNow();
+        }
+      });
+  }
+
 }
 
