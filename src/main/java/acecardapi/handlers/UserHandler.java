@@ -50,8 +50,10 @@ public class UserHandler extends AbstractCustomHandler{
         System.out.println("Failure: " + ar.cause().getMessage());
 
         context.response()
-          .putHeader("content-type", "application/json; charset=utf-8"
-          ).end("Sorry! Ik heb nog geen response....");
+          .putHeader("content-type", "application/json; charset=utf-8")
+          .putHeader("Access-Control-Allow-Origin", "*")
+          .putHeader("Access-Control-Allow-Methods","GET, POST")
+          .end("Sorry! Ik heb nog geen response....");
 
       }
     });
