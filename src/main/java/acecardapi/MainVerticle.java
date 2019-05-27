@@ -23,6 +23,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.dns.AddressResolverOptions;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.ext.auth.PubSecKeyOptions;
 import io.vertx.ext.auth.jwt.JWTAuth;
 import io.vertx.ext.auth.jwt.JWTAuthOptions;
@@ -31,6 +32,7 @@ import io.vertx.ext.mail.MailConfig;
 import io.vertx.ext.mail.StartTLSOptions;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
+import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.JWTAuthHandler;
 import io.vertx.redis.RedisClient;
 import io.vertx.redis.RedisOptions;
@@ -126,6 +128,9 @@ public class MainVerticle extends AbstractVerticle {
     /*
     Routes
      */
+
+    // CORS
+    router.route().handler(CorsHandler.create(".*").allowedMethod(HttpMethod.GET));
 
     // Protected apis (All these endpoints require JWT)
     // TODO: Beautify?
