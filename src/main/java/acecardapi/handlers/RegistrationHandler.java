@@ -153,7 +153,7 @@ public class RegistrationHandler extends AbstractCustomHandler {
 
     redisClient.set(tokenValue, userId.toString(), res -> {
       if (res.succeeded()) {
-        redisClient.expire(tokenValue, 60, expireRes -> {
+        redisClient.expire(tokenValue, this.config.getLong("registration.code_expire_time", 32400L), expireRes -> {
           if (expireRes.succeeded()) {
             resultHandler.handle(Future.succeededFuture(tokenValue));
           } else {

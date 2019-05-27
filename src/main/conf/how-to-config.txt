@@ -34,5 +34,6 @@ Example:
   "mail.host" : "",
   "mail.port" : <int>,
   "mail.user" : "",
-  "mail.pass" : ""
+  "mail.pass" : "",
+  "registration.code_expire_time" : <int>
 }
