@@ -13,3 +13,6 @@ services:
 before_script:
   - psql -c "CREATE DATABASE ase_acecard_test_database;" -U postgres
   - psql -c "CREATE USER acecard WITH PASSWORD 'acecard';" -U postgres
+  - psql -d  ase_acecard_test_database -a -f sql/setup-database.sql
+  - psql -d  ase_acecard_test_database -a -f sql/insert-database.sql
+  - psql -U postgres -d ase_acecard_test_database -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public to acecard; GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public to acecard; GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public to acecard;"

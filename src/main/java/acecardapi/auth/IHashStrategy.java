@@ -27,7 +27,6 @@ import io.vertx.core.json.JsonArray;
  *
  * You can implement this to provide a different hashing strategy to the default.
  *
- * @author <a href="http://tfox.org">Tim Fox</a>
  */
 @VertxGen
 public interface IHashStrategy {
