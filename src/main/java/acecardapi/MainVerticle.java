@@ -60,11 +60,11 @@ public class MainVerticle extends AbstractVerticle {
     Setup Email Client
      */
     MailConfig config = new MailConfig();
-    config.setHostname(config().getString("mail.host"));
-    config.setPort(config().getInteger("mail.port"));
+    config.setHostname(config().getString("mail.host", "'"));
+    config.setPort(config().getInteger("mail.port", 587));
     config.setStarttls(StartTLSOptions.REQUIRED);
-    config.setUsername(config().getString("mail.user"));
-    config.setPassword(config().getString("mail.pass"));
+    config.setUsername(config().getString("mail.user", ""));
+    config.setPassword(config().getString("mail.pass", ""));
     MailClient mailClient = MailClient.createNonShared(vertx, config);
 
 
@@ -105,7 +105,7 @@ public class MainVerticle extends AbstractVerticle {
     JWTAuth jwtProvider = JWTAuth.create(vertx, new JWTAuthOptions()
       .addPubSecKey(new PubSecKeyOptions()
         .setAlgorithm("HS256")
-        .setPublicKey(config().getString("jwt.publickey"))
+        .setPublicKey(config().getString("jwt.publickey", "AVeryBadPublicKey<3"))
         .setSymmetric(true)));
 
 
