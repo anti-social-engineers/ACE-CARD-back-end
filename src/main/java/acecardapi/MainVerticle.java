@@ -178,7 +178,7 @@ public class MainVerticle extends AbstractVerticle {
         .setKeyCertOptions(pemKeyCertOptions);
 
       // Create the HttpServer
-      vertx.createHttpServer().requestHandler(router).listen(
+      vertx.createHttpServer(httpServerOptions).requestHandler(router).listen(
         config().getInteger("http.port", 8888),
         result -> {
           if (result.succeeded())
