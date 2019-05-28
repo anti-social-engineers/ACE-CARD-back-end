@@ -24,7 +24,9 @@ import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.dns.AddressResolverOptions;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.net.PemKeyCertOptions;
 import io.vertx.ext.auth.PubSecKeyOptions;
 import io.vertx.ext.auth.jwt.JWTAuth;
 import io.vertx.ext.auth.jwt.JWTAuthOptions;
@@ -164,17 +166,40 @@ public class MainVerticle extends AbstractVerticle {
     //// User Management ////
     router.get("/api/users").handler(userHandler::getUsers);
 
+    // HttpServer options
 
-    // Create the HttpServer
-    vertx.createHttpServer().requestHandler(router).listen(
-      config().getInteger("http.port", 8888),
-      result -> {
-        if (result.succeeded())
-          startFuture.complete();
-        else
-          startFuture.fail(result.cause());
-      }
-    );
+    if (config().getBoolean("http.ssl")) {
+      PemKeyCertOptions pemKeyCertOptions = new PemKeyCertOptions()
+        .setKeyPath("ssl/privKey.pem")
+        .setCertPath("ssl/cert_fullchain.pem");
+
+      HttpServerOptions httpServerOptions = new HttpServerOptions()
+        .setSsl(true)
+        .setKeyCertOptions(pemKeyCertOptions);
+
+      // Create the HttpServer
+      vertx.createHttpServer().requestHandler(router).listen(
+        config().getInteger("http.port", 8888),
+        result -> {
+          if (result.succeeded())
+            startFuture.complete();
+          else
+            startFuture.fail(result.cause());
+        }
+      );
+    } else {
+
+      // Create the HttpServer
+      vertx.createHttpServer().requestHandler(router).listen(
+        config().getInteger("http.port", 8888),
+        result -> {
+          if (result.succeeded())
+            startFuture.complete();
+          else
+            startFuture.fail(result.cause());
+        }
+      );
+    }
 
   }
 }
