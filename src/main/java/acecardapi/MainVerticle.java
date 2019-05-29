@@ -84,23 +84,23 @@ public class MainVerticle extends AbstractVerticle {
     RedisClient redisClient = RedisClient.create(vertx,
       new RedisOptions().setHost(config().getString("redis.host", "127.0.0.1")));
 
-    redisClient.set("testKeyOne", "ARANDOMVALUE", r -> {
-      if (r.succeeded()) {
-        System.out.println("KeyStored");
-        redisClient.exists("testKeyOne", r2 -> {
-          if (r2.succeeded()) {
-            System.out.println(r2.result());
-          }
-          else {
-            System.out.println(r2.cause().toString());
-          }
-        });
-      }
-      else {
-        System.out.println(r.cause().toString());
-        System.out.println("FAILURE");
-      }
-    });
+//    redisClient.set("testKeyOne", "ARANDOMVALUE", r -> {
+//      if (r.succeeded()) {
+//        System.out.println("KeyStored");
+//        redisClient.exists("testKeyOne", r2 -> {
+//          if (r2.succeeded()) {
+//            System.out.println(r2.result());
+//          }
+//          else {
+//            System.out.println(r2.cause().toString());
+//          }
+//        });
+//      }
+//      else {
+//        System.out.println(r.cause().toString());
+//        System.out.println("FAILURE");
+//      }
+//    });
 
 
     /*
