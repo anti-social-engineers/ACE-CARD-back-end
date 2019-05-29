@@ -47,13 +47,17 @@ public class LoginHandler extends AbstractCustomHandler{
         // Email address has invalid format
 
         InputFormatViolation error = new InputFormatViolation("email_address");
-        context.response().setStatusCode(422).end(Json.encodePrettily(error.errorJson()));
+        context.response()
+          .setStatusCode(422)
+          .putHeader("content-type", "application/json; charset=utf-8")
+          .end(Json.encodePrettily(error.errorJson()));
 
       }
 
-      context.response().setStatusCode(500)
-        .putHeader("content-type", "application/json; charset=utf-8"
-        ).end("Something went wrong...");
+      context.response()
+        .setStatusCode(500)
+        .putHeader("content-type", "application/json; charset=utf-8")
+        .end("Something went wrong...");
 
       return;
 
@@ -81,8 +85,10 @@ public class LoginHandler extends AbstractCustomHandler{
               // verify the JWT signature, but we need to handle it just in case.
 
               context.response()
-                .putHeader("content-type", "application/json; charset=utf-8"
-                ).setStatusCode(500).end();
+                .putHeader("content-type", "application/json; charset=utf-8")
+                .setStatusCode(500)
+                .end();
+
             } else {
 
               // Check if the user has activated their email:
@@ -93,31 +99,38 @@ public class LoginHandler extends AbstractCustomHandler{
 
                 EmailNotVerifiedViolation error = new EmailNotVerifiedViolation("email_not_activated");
                 context.response()
-                  .putHeader("content-type", "application/json; charset=utf-8"
-                  ).setStatusCode(403).end(Json.encodePrettily(error.errorJson()));
+                  .putHeader("content-type", "application/json; charset=utf-8")
+                  .setStatusCode(403)
+                  .end(Json.encodePrettily(error.errorJson()));
+
               } else {
 
                 String token = jwtProvider.generateToken(new JsonObject()
                     .put("sub", logged_user.principal().getString("id")),
                   new JWTOptions().setExpiresInSeconds(config.getInteger("jwt.exptime", 32400)));
 
-                context.response().setStatusCode(200).end(Json.encodePrettily(new JwtToken(token)));
+                context.response()
+                  .setStatusCode(200)
+                  .putHeader("content-type", "application/json; charset=utf-8")
+                  .end(Json.encodePrettily(new JwtToken(token)));
               }
             }
           } else {
             // Return a 500 error (Something went wrong connecting with the db/executing the query)
             context.response()
-              .putHeader("content-type", "application/json; charset=utf-8"
-              ).setStatusCode(500).end();
-            return;
+              .putHeader("content-type", "application/json; charset=utf-8")
+              .setStatusCode(500)
+              .end();
+
           }
         });
       }
 
       else {
         context.response()
-          .putHeader("content-type", "application/json; charset=utf-8"
-          ).setStatusCode(401).end("Unauthroized");
+          .putHeader("content-type", "application/json; charset=utf-8")
+          .setStatusCode(401)
+          .end("Unauthroized");
       }
     });
   }
