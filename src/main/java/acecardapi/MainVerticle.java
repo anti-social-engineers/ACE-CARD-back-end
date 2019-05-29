@@ -164,7 +164,7 @@ public class MainVerticle extends AbstractVerticle {
 
     // HttpServer options
 
-    if (config().getBoolean("http.ssl")) {
+    if (config().getBoolean("http.ssl", false)) {
       PemKeyCertOptions pemKeyCertOptions = new PemKeyCertOptions()
         .setKeyPath("ssl/privKey.pem")
         .setCertPath("ssl/fullchain.pem");

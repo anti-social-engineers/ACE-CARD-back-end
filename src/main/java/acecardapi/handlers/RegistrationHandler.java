@@ -22,7 +22,6 @@ import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.mail.MailClient;
 import io.vertx.ext.mail.MailMessage;
-import io.vertx.ext.mail.MailResult;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.redis.RedisClient;
 
@@ -57,11 +56,17 @@ public class RegistrationHandler extends AbstractCustomHandler {
         // Email address has invalid format
 
         InputFormatViolation error = new InputFormatViolation("email_address");
-        context.response().setStatusCode(422).end(Json.encodePrettily(error.errorJson()));
+        context.response()
+          .setStatusCode(422)
+          .putHeader("content-type", "application/json; charset=utf-8")
+          .end(Json.encodePrettily(error.errorJson()));
 
       }
 
-      context.response().setStatusCode(500).end("");
+      context.response()
+        .setStatusCode(500)
+        .putHeader("content-type", "application/json; charset=utf-8")
+        .end();
 
     }
 
@@ -88,8 +93,12 @@ public class RegistrationHandler extends AbstractCustomHandler {
 
             MailMessage message = buildRegistrationMail(users.getEmail(), key);
 
-            context.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(201).end();
-            // TODO: Response pas na mail?
+            context.response()
+              .putHeader("content-type", "application/json; charset=utf-8")
+              .setStatusCode(201)
+              .end();
+
+            // Send the confirmation email
             mailClient.sendMail(message, result -> {
               if (result.succeeded()) {
 
@@ -108,7 +117,10 @@ public class RegistrationHandler extends AbstractCustomHandler {
             });
 
           } else {
-            context.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(500).end();
+            context.response()
+              .putHeader("content-type", "application/json; charset=utf-8")
+              .setStatusCode(500)
+              .end();
           }
         });
       } else {
@@ -121,12 +133,18 @@ public class RegistrationHandler extends AbstractCustomHandler {
 
             UniqueViolation error = new UniqueViolation("email_address");
 
-            context.response().setStatusCode(409).putHeader("content-type", "application/json; charset=utf-8").end(Json.encode(error.errorJson()));
+            context.response()
+              .setStatusCode(409)
+              .putHeader("content-type", "application/json; charset=utf-8")
+              .end(Json.encode(error.errorJson()));
             return;
           }
         }
         System.out.println(res.cause().toString());
-        context.response().setStatusCode(400).putHeader("content-type", "application/json; charset=utf-8").end(Json.encode("Something went wrong."));
+        context.response()
+          .setStatusCode(400)
+          .putHeader("content-type", "application/json; charset=utf-8")
+          .end(Json.encode("Something went wrong."));
       }
     });
   }

@@ -39,7 +39,11 @@ public class ActivationHandler extends AbstractCustomHandler {
 
     // Check if the key is the correct length
     if (activationKey.length() != 32) {
-      context.response().setStatusCode(400).putHeader("content-type", "application/json; charset=utf-8").end(Json.encodePrettily(new PathParameterViolation("activationkey").errorJson()));
+      context.response()
+        .setStatusCode(400)
+        .putHeader("content-type", "application/json; charset=utf-8")
+        .end(Json.encodePrettily(new PathParameterViolation("activationkey").errorJson()));
+
     } else {
 
 
@@ -49,7 +53,10 @@ public class ActivationHandler extends AbstractCustomHandler {
           String stringId = res.result();
 
           if (stringId == null) {
-            context.response().setStatusCode(404).putHeader("content-type", "application/json; charset=utf-8").end(Json.encodePrettily(new ParameterNotFoundViolation("activationkey").errorJson()));
+            context.response()
+              .setStatusCode(404)
+              .putHeader("content-type", "application/json; charset=utf-8")
+              .end(Json.encodePrettily(new ParameterNotFoundViolation("activationkey").errorJson()));
           } else {
 
             UUID userId = UUID.fromString(res.result());
@@ -58,7 +65,10 @@ public class ActivationHandler extends AbstractCustomHandler {
               if (updateResult.succeeded()) {
 
                 // Account updated to have activated email
-                context.response().setStatusCode(200).putHeader("content-type", "application/json; charset=utf-8").end();
+                context.response()
+                  .setStatusCode(200)
+                  .putHeader("content-type", "application/json; charset=utf-8")
+                  .end();
 
                 // Delete the key afterwards
                 redisClient.unlink(activationKey, unlinkRes -> {
@@ -70,7 +80,10 @@ public class ActivationHandler extends AbstractCustomHandler {
                 });
 
               } else {
-                context.response().setStatusCode(500).putHeader("content-type", "application/json; charset=utf-8").end();
+                context.response()
+                  .setStatusCode(500)
+                  .putHeader("content-type", "application/json; charset=utf-8")
+                  .end();
               }
             });
           }
@@ -79,7 +92,10 @@ public class ActivationHandler extends AbstractCustomHandler {
 
           // Redis down
 
-          context.response().setStatusCode(500).putHeader("content-type", "application/json; charset=utf-8").end();
+          context.response()
+            .setStatusCode(500)
+            .putHeader("content-type", "application/json; charset=utf-8")
+            .end();
         }
       });
     }

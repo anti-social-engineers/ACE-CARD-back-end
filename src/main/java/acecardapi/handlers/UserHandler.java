@@ -28,12 +28,10 @@ public class UserHandler extends AbstractCustomHandler{
     dbClient.query("SELECT * FROM users", ar -> {
       if (ar.succeeded()) {
         PgRowSet result = ar.result();
-        System.out.println("Got " + result.size() + " rows ");
 
         JsonArray jsonArray = new JsonArray();
 
         for (Row row: result) {
-          System.out.println(row.toString());
 
           Users users = new Users(row.getUUID("id"), row.getString("email"));
 
