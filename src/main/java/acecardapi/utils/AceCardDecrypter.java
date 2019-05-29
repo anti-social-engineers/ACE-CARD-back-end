@@ -1,3 +1,13 @@
+/*
+ * Copyright (c) 2019. Ralph Verburg & Anti-Social Engineers
+ *
+ *  All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT license.
+ *
+ */
+
+package acecardapi.utils;
+
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -8,12 +18,6 @@ import java.util.Base64;
 public class AceCardDecrypter {
 
     //private static final String key = "C*F-JaNdRgUjXn2r5u8x/A?D(G+KbPeS";
-
-    public static void main(String[] args) {
-        //Test returns string of 16 characters (the length of our cardId)
-        //Remove Main later
-        System.out.println(decrypt("TVobdap635jvPSW9KShf1ZuBDLDuh8a7syXEjl58+Vs=", "C*F-JaNdRgUjXn2r5u8x/A?D(G+KbPeS"));
-    }
 
     public static String decrypt(String encryptedCardId, String key) {
         try {
