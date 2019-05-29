@@ -20,12 +20,8 @@ import io.reactiverse.pgclient.PgPool;
 import io.reactiverse.pgclient.PgPoolOptions;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
-import io.vertx.core.Vertx;
-import io.vertx.core.VertxOptions;
-import io.vertx.core.dns.AddressResolverOptions;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
-import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.net.PemKeyCertOptions;
 import io.vertx.ext.auth.PubSecKeyOptions;
 import io.vertx.ext.auth.jwt.JWTAuth;
@@ -175,11 +171,13 @@ public class MainVerticle extends AbstractVerticle {
 
       HttpServerOptions httpServerOptions = new HttpServerOptions()
         .setSsl(true)
-        .setKeyCertOptions(pemKeyCertOptions);
+        .setKeyCertOptions(pemKeyCertOptions)
+        .removeEnabledSecureTransportProtocol("TLSv1")
+        .removeEnabledSecureTransportProtocol("TLSv1.1");
 
       // Create the HttpServer
       vertx.createHttpServer(httpServerOptions).requestHandler(router).listen(
-        config().getInteger("http.port", 8888),
+        config().getInteger("http.port", 443),
         result -> {
           if (result.succeeded())
             startFuture.complete();
