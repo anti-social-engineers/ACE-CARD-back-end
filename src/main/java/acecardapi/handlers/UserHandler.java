@@ -25,56 +25,31 @@ public class UserHandler extends AbstractCustomHandler{
 
   public void getUsers(RoutingContext context) {
 
-    context.user().isAuthorized("sysop", authRes -> {
-      if (authRes.succeeded()) {
-        boolean isSysop = authRes.result();
+    dbClient.query("SELECT * FROM users", ar -> {
+      if (ar.succeeded()) {
+        PgRowSet result = ar.result();
 
-        if (isSysop) {
-          dbClient.query("SELECT * FROM users", ar -> {
-            if (ar.succeeded()) {
-              PgRowSet result = ar.result();
+        JsonArray jsonArray = new JsonArray();
 
-              JsonArray jsonArray = new JsonArray();
+        for (Row row: result) {
 
-              for (Row row: result) {
+          Users users = new Users(row.getUUID("id"), row.getString("email"));
 
-                Users users = new Users(row.getUUID("id"), row.getString("email"));
-
-                jsonArray.add(users.toJsonObject());
-              }
-
-              context.response()
-                .putHeader("content-type", "application/json; charset=utf-8")
-                .setStatusCode(200)
-                .end(Json.encodePrettily(jsonArray));
-
-            } else {
-
-              context.response()
-                .putHeader("content-type", "application/json; charset=utf-8")
-                .setStatusCode(200)
-                .end("Sorry! Ik heb nog geen response....");
-
-            }
-          });
+          jsonArray.add(users.toJsonObject());
         }
-        else {
-
-          // Unauthorized request
-
-          context.response()
-            .putHeader("content-type", "application/json; charset=utf-8")
-            .setStatusCode(403)
-            .end();
-        }
-      } else {
-
-        // 500 error
 
         context.response()
           .putHeader("content-type", "application/json; charset=utf-8")
-          .setStatusCode(500)
-          .end();
+          .setStatusCode(200)
+          .end(Json.encodePrettily(jsonArray));
+
+      } else {
+
+        context.response()
+          .putHeader("content-type", "application/json; charset=utf-8")
+          .setStatusCode(200)
+          .end("Sorry! Ik heb nog geen response....");
+
       }
     });
   }
