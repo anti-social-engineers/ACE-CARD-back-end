@@ -30,6 +30,7 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.JWTAuthHandler;
+import io.vertx.ext.web.handler.StaticHandler;
 import io.vertx.redis.RedisClient;
 import io.vertx.redis.RedisOptions;
 
@@ -147,7 +148,9 @@ public class MainVerticle extends AbstractVerticle {
 
     // Protected apis (All these endpoints require JWT)
     // TODO: Beautify?
-    router.route("/api/users/*").handler(JWTAuthHandler.create(jwtProvider));
+    JWTAuthHandler jwtAuthHandler = JWTAuthHandler.create(jwtProvider);
+    router.route("/api/users/*").handler(jwtAuthHandler);
+    router.route("/static/*").handler(jwtAuthHandler);
 
     //// Handle register/login endpoints ////
     router.route("/api/register").handler(BodyHandler.create());
@@ -159,6 +162,10 @@ public class MainVerticle extends AbstractVerticle {
     //// User Management ////
     router.route("/api/users").handler(new AuthorizationHandler("sysop"));
     router.get("/api/users").handler(userHandler::getUsers);
+
+    //// Serving profile image  ////
+    router.route("/static/images/*").handler(new ProfileImageAuthorizationHandler());
+    router.route("/static/images/*").handler(StaticHandler.create().setWebRoot("static/images"));
 
     // HttpServer options
 
