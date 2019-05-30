@@ -40,13 +40,14 @@ public class UserHandler extends AbstractCustomHandler{
 
         context.response()
           .putHeader("content-type", "application/json; charset=utf-8")
+          .setStatusCode(200)
           .end(Json.encodePrettily(jsonArray));
 
       } else {
-        System.out.println("Failure: " + ar.cause().getMessage());
 
         context.response()
           .putHeader("content-type", "application/json; charset=utf-8")
+          .setStatusCode(200)
           .end("Sorry! Ik heb nog geen response....");
 
       }

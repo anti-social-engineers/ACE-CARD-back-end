@@ -15,6 +15,7 @@ import acecardapi.models.JwtToken;
 import acecardapi.models.Users;
 import io.reactiverse.pgclient.*;
 import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.auth.User;
 import io.vertx.ext.auth.jwt.JWTAuth;
@@ -76,7 +77,7 @@ public class LoginHandler extends AbstractCustomHandler{
         UUID id = UUID.fromString(logged_user.principal().getString("id"));
 
         // Check if the user has a verified email:
-        dbClient.preparedQuery("SELECT * FROM users WHERE id=$1", Tuple.of(id), res -> {
+        dbClient.preparedQuery("SELECT is_email_verified, role FROM users WHERE id=$1", Tuple.of(id), res -> {
           if (res.succeeded()) {
             PgRowSet result = res.result();
 
@@ -106,7 +107,8 @@ public class LoginHandler extends AbstractCustomHandler{
               } else {
 
                 String token = jwtProvider.generateToken(new JsonObject()
-                    .put("sub", logged_user.principal().getString("id")),
+                    .put("sub", logged_user.principal().getString("id"))
+                    .put("permissions", new JsonArray().add(row.getString("role"))),
                   new JWTOptions().setExpiresInSeconds(config.getInteger("jwt.exptime", 32400)));
 
                 context.response()

@@ -11,10 +11,7 @@ package acecardapi;
 import acecardapi.auth.IReactiveAuth;
 import acecardapi.auth.PBKDF2Strategy;
 import acecardapi.auth.ReactiveAuth;
-import acecardapi.handlers.ActivationHandler;
-import acecardapi.handlers.LoginHandler;
-import acecardapi.handlers.RegistrationHandler;
-import acecardapi.handlers.UserHandler;
+import acecardapi.handlers.*;
 import io.reactiverse.pgclient.PgClient;
 import io.reactiverse.pgclient.PgPool;
 import io.reactiverse.pgclient.PgPoolOptions;
@@ -84,23 +81,23 @@ public class MainVerticle extends AbstractVerticle {
     RedisClient redisClient = RedisClient.create(vertx,
       new RedisOptions().setHost(config().getString("redis.host", "127.0.0.1")));
 
-    redisClient.set("testKeyOne", "ARANDOMVALUE", r -> {
-      if (r.succeeded()) {
-        System.out.println("KeyStored");
-        redisClient.exists("testKeyOne", r2 -> {
-          if (r2.succeeded()) {
-            System.out.println(r2.result());
-          }
-          else {
-            System.out.println(r2.cause().toString());
-          }
-        });
-      }
-      else {
-        System.out.println(r.cause().toString());
-        System.out.println("FAILURE");
-      }
-    });
+//    redisClient.set("testKeyOne", "ARANDOMVALUE", r -> {
+//      if (r.succeeded()) {
+//        System.out.println("KeyStored");
+//        redisClient.exists("testKeyOne", r2 -> {
+//          if (r2.succeeded()) {
+//            System.out.println(r2.result());
+//          }
+//          else {
+//            System.out.println(r2.cause().toString());
+//          }
+//        });
+//      }
+//      else {
+//        System.out.println(r.cause().toString());
+//        System.out.println("FAILURE");
+//      }
+//    });
 
 
     /*
@@ -160,6 +157,7 @@ public class MainVerticle extends AbstractVerticle {
     router.get("/api/activate/:activationkey").handler(activationHandler::activateUser);
 
     //// User Management ////
+    router.route("/api/users").handler(new AuthorizationHandler("sysop"));
     router.get("/api/users").handler(userHandler::getUsers);
 
     // HttpServer options
