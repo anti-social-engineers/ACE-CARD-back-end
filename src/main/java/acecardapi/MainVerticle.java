@@ -17,6 +17,7 @@ import io.reactiverse.pgclient.PgPool;
 import io.reactiverse.pgclient.PgPoolOptions;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
+import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.net.PemKeyCertOptions;
@@ -26,11 +27,9 @@ import io.vertx.ext.auth.jwt.JWTAuthOptions;
 import io.vertx.ext.mail.MailClient;
 import io.vertx.ext.mail.MailConfig;
 import io.vertx.ext.mail.StartTLSOptions;
+import io.vertx.ext.web.FileUpload;
 import io.vertx.ext.web.Router;
-import io.vertx.ext.web.handler.BodyHandler;
-import io.vertx.ext.web.handler.CorsHandler;
-import io.vertx.ext.web.handler.JWTAuthHandler;
-import io.vertx.ext.web.handler.StaticHandler;
+import io.vertx.ext.web.handler.*;
 import io.vertx.redis.RedisClient;
 import io.vertx.redis.RedisOptions;
 
@@ -38,6 +37,9 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class MainVerticle extends AbstractVerticle {
+
+  private static final int KB = 1024;
+  private static final int MB = 1024 * KB;
 
   @Override
   public void start(Future<Void> startFuture) throws Exception {
@@ -147,7 +149,9 @@ public class MainVerticle extends AbstractVerticle {
       .allowedMethods(allowedMethods));
 
     // Protected apis (All these endpoints require JWT)
-    // TODO: Beautify?
+    // TODO: Beautify? - Cookie handler only on TokenHeader?
+    router.route().handler(CookieHandler.create());
+    router.route().handler(new TokenHeaderHandler());
     JWTAuthHandler jwtAuthHandler = JWTAuthHandler.create(jwtProvider);
     router.route("/api/users/*").handler(jwtAuthHandler);
     router.route("/static/*").handler(jwtAuthHandler);
@@ -162,6 +166,28 @@ public class MainVerticle extends AbstractVerticle {
     //// User Management ////
     router.route("/api/users").handler(new AuthorizationHandler("sysop"));
     router.get("/api/users").handler(userHandler::getUsers);
+
+    //// Ace Card ////
+    router.post("/api/acecard").handler(BodyHandler.create()
+      .setUploadsDirectory("static/images")
+      .setBodyLimit(MB * 1));
+    router.post("/api/acecard").handler(ctx -> {
+      MultiMap attributes = ctx.request().formAttributes();
+      // do something with the form data
+      Set<FileUpload> uploads = ctx.fileUploads();
+      for (FileUpload file : uploads
+           ) {
+        System.out.println(file.size());
+        System.out.println(file.name());
+        System.out.println(file.fileName());
+        System.out.println(file.uploadedFileName());
+        System.out.println(file.contentType());
+      }
+      System.out.println(uploads);
+      System.out.println(attributes);
+
+      ctx.response().end();
+    });
 
     //// Serving profile image  ////
     router.route("/static/images/*").handler(new ProfileImageAuthorizationHandler());
