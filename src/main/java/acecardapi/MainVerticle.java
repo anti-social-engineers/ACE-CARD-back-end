@@ -151,7 +151,7 @@ public class MainVerticle extends AbstractVerticle {
     // Protected apis (All these endpoints require JWT)
     // TODO: Beautify? - Cookie handler only on TokenHeader?
     router.route().handler(CookieHandler.create());
-    router.route().handler(new TokenHeaderHandler());
+//    router.route().handler(new TokenHeaderHandler());
     JWTAuthHandler jwtAuthHandler = JWTAuthHandler.create(jwtProvider);
     router.route("/api/users/*").handler(jwtAuthHandler);
     router.route("/static/*").handler(jwtAuthHandler);
@@ -168,6 +168,7 @@ public class MainVerticle extends AbstractVerticle {
     router.get("/api/users").handler(userHandler::getUsers);
 
     //// Ace Card ////
+    router.post("/api/acecard").handler(new FileTypeHandler());
     router.post("/api/acecard").handler(BodyHandler.create()
       .setUploadsDirectory("static/images")
       .setBodyLimit(MB * 1));
@@ -177,6 +178,7 @@ public class MainVerticle extends AbstractVerticle {
       Set<FileUpload> uploads = ctx.fileUploads();
       for (FileUpload file : uploads
            ) {
+        System.out.println(file.contentType());
         System.out.println(file.size());
         System.out.println(file.name());
         System.out.println(file.fileName());
