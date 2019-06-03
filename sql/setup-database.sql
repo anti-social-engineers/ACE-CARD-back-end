@@ -226,7 +226,7 @@ ALTER SEQUENCE penalties_id_seq OWNED BY penalties.id;
 
 CREATE TABLE users (
     id uuid NOT NULL,
-    email character varying(254) NOT NULL,
+    email character varying(254) NOT NULL UNIQUE,
     password character varying(255) NOT NULL,
     password_salt character varying(255) NOT NULL,
     first_name character varying(255),
