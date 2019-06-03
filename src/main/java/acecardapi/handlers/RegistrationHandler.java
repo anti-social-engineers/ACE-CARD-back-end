@@ -81,7 +81,7 @@ public class RegistrationHandler extends AbstractCustomHandler {
     users.setPassword(hash);
     users.setPassword_salt(salt);
 
-    dbClient.preparedQuery("INSERT INTO users (id, email, password, password_salt) VALUES ($1, $2, $3, $4)", users.toTuple(), res -> {
+    dbClient.preparedQuery("INSERT INTO users (id, email, password, password_salt, is_email_verified) VALUES ($1, $2, $3, $4, false)", users.toTuple(), res -> {
       if (res.succeeded()) {
 
         RandomToken token = new RandomToken(32);
