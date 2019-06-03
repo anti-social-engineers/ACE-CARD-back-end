@@ -90,7 +90,9 @@ CREATE TABLE cards (
     is_activated boolean NOT NULL,
     credits numeric(10,2) NOT NULL,
     is_blocked boolean NOT NULL,
-    user_id_id uuid NOT NULL
+    user_id_id uuid NOT NULL,
+    requested_date timestamp with time zone NOT NULL,
+    activation_date timestamp with time zone
 );
 
 
@@ -121,7 +123,7 @@ CREATE TABLE deposits (
     id integer NOT NULL,
     amount numeric(10,2) NOT NULL,
     card_id_id character varying(255) NOT NULL,
-    deposit_date timestamp NOT NULL
+    deposit_date timestamp with time zone NOT NULL
 );
 
 
@@ -176,7 +178,7 @@ CREATE TABLE payments (
     amount numeric(10,2) NOT NULL,
     card_id_id character varying(255) NOT NULL,
     club_id uuid NOT NULL,
-	payment_date timestamp NOT NULL
+	  payment_date timestamp with time zone NOT NULL
 );
 
 
@@ -264,6 +266,7 @@ CREATE TABLE users (
     is_email_verified boolean DEFAULT false NOT NULL,
     role character varying(15) DEFAULT 'user' NOT NULL,
     address_id integer
+    unique (first_name, last_name, date_of_birth)
 );
 
 

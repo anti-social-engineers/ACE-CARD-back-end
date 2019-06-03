@@ -168,7 +168,6 @@ public class MainVerticle extends AbstractVerticle {
     router.get("/api/users").handler(userHandler::getUsers);
 
     //// Ace Card ////
-    router.post("/api/acecard").handler(new FileTypeHandler());
     router.post("/api/acecard").handler(BodyHandler.create()
       .setUploadsDirectory("static/images")
       .setBodyLimit(MB * 1));
