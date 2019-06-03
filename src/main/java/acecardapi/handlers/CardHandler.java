@@ -8,18 +8,11 @@
 
 package acecardapi.handlers;
 
-import acecardapi.models.Users;
+import io.reactiverse.pgclient.PgConnection;
 import io.reactiverse.pgclient.PgPool;
-import io.reactiverse.pgclient.PgRowSet;
-import io.reactiverse.pgclient.Row;
 import io.vertx.core.MultiMap;
-import io.vertx.core.json.Json;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.web.FileUpload;
 import io.vertx.ext.web.RoutingContext;
-
-import java.util.Set;
 
 public class CardHandler extends AbstractCustomHandler{
 
@@ -29,5 +22,46 @@ public class CardHandler extends AbstractCustomHandler{
 
   public void requestCard(RoutingContext context) {
 
+    MultiMap attributes = context.request().formAttributes();
+
+    // TODO: CLOSE CONNECTION
+    dbClient.getConnection(getConnection -> {
+      if (getConnection.succeeded()) {
+        PgConnection connection = getConnection.result();
+
+        // Eerst address (insert or get)
+        // Dan User (update)
+        // Dan Cards (Insert)
+
+        connection.query("SELECT * FROM users WHERE id='julien'", ar2 -> {
+          if (ar1.succeeded()) {
+            connection.query("SELECT * FROM users WHERE id='paulo'", ar3 -> {
+              // Do something with rows and return the connection to the pool
+              connection.close();
+            });
+          } else {
+            // Return the connection to the pool
+            connection.close();
+          }
+        });
+      } else {
+
+      }
+    });
+
   }
+
+  private void raise500(RoutingContext context) {
+    context.response()
+      .setStatusCode(500)
+      .putHeader("Cache-Control", "no-store, no-cache")
+      .putHeader("X-Content-Type-Options", "nosniff")
+      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+      .putHeader("X-Download-Options", "noopen")
+      .putHeader("X-XSS-Protection", "1; mode=block")
+      .putHeader("X-FRAME-OPTIONS", "DENY")
+      .putHeader("content-type", "application/json; charset=utf-8")
+      .end();
+  }
+
 }

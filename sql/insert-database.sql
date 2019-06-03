@@ -22,8 +22,8 @@ VALUES ('a2b19f94-4fb1-48d3-9e35-b6e250979d5c', 'aaron.beetstra@outlook.com', '0
 --- [CARD]
 --- Ensure ID is an actual id which corresponds with a id on a card
 ---
-INSERT INTO cards (id, is_activated, credits, is_blocked, user_id_id, requested_date)
-VALUES ('randomCardSecretID', true, 19.99, false, 'e2005006-2d8a-4f6f-b557-f16da75519bf', '2019-06-03 08:23:54+02:00');
+INSERT INTO cards (id, card_code, is_activated, credits, is_blocked, user_id_id, requested_at)
+VALUES ('4e162c6c-cc6f-433f-a6aa-bb167a9d8480', 'randomCardSecretID', true, 19.99, false, 'e2005006-2d8a-4f6f-b557-f16da75519bf', '2019-06-03 08:23:54+02:00');
 
 
 ---
