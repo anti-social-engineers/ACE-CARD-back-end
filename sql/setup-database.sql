@@ -265,7 +265,7 @@ CREATE TABLE users (
     date_of_birth date,
     is_email_verified boolean DEFAULT false NOT NULL,
     role character varying(15) DEFAULT 'user' NOT NULL,
-    address_id integer
+    address_id integer,
     unique (first_name, last_name, date_of_birth)
 );
 
