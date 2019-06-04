@@ -33,6 +33,7 @@ import io.vertx.ext.web.handler.*;
 import io.vertx.redis.RedisClient;
 import io.vertx.redis.RedisOptions;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -127,7 +128,8 @@ public class MainVerticle extends AbstractVerticle {
     ActivationHandler activationHandler = new ActivationHandler(dbClient, config(), redisClient);
     // CardHandler
     CardHandler cardHandler = new CardHandler(dbClient, config());
-
+    // ClubHandler
+    ClubHandler clubHandler = new ClubHandler(dbClient, config());
 
     /*
     Routes
@@ -159,20 +161,26 @@ public class MainVerticle extends AbstractVerticle {
     router.route("/api/account/*").handler(jwtAuthHandler);
     router.route("/static/*").handler(jwtAuthHandler);
     router.route("/api/acecard/*").handler(jwtAuthHandler);
+    router.route("/api/club/*").handler(jwtAuthHandler);
 
     //// Handle register/login endpoints ////
-    router.route("/api/register").handler(BodyHandler.create());
-    router.route("/api/login").handler(BodyHandler.create());
+    router.route("/api/register").handler(BodyHandler.create(false));
+    router.route("/api/login").handler(BodyHandler.create(false));
     router.post("/api/register").handler(registrationHandler::registerUser);
     router.post("/api/login").handler(loginHandler::login);
     router.get("/api/activate/:activationkey").handler(activationHandler::activateUser);
 
     //// User Management ////
-    router.route("/api/users").handler(new AuthorizationHandler("sysop"));
+    router.route("/api/users").handler(new AuthorizationHandler(new String[]{"sysop"}));
     router.get("/api/users").handler(userHandler::getUsers);
 
     //// Account information ////
     router.get("/api/account").handler(userHandler::getUserData);
+
+
+    //// Club endpoints ////
+    router.route("/api/club/scan").handler(new AuthorizationHandler(new String[]{"sysop", "club_employee"}));
+    router.post("/api/club/scan").handler(clubHandler::scanCard);
 
     //// Ace Card ////
     router.post("/api/acecard").handler(BodyHandler.create()

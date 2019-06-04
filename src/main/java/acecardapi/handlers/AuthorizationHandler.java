@@ -11,33 +11,45 @@ package acecardapi.handlers;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
 
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+
 public class AuthorizationHandler implements Handler<RoutingContext> {
 
-  private String role;
+  private String[] roles;
+  private boolean isAuthorized = false;
 
-  public AuthorizationHandler(String authRole) {
-    this.role = authRole;
+  public AuthorizationHandler(String[] authRoles) {
+    this.roles = authRoles;
   }
 
   @Override
   public void handle(RoutingContext context) {
-    context.user().isAuthorized(this.role, authRes -> {
-      if (authRes.succeeded()) {
-        boolean isSysop = authRes.result();
 
-        if (isSysop) {
-          context.next();
-        } else {
+    for (int i = 0; i < roles.length; i++) {
 
-          // Unauthorized request
-
-          context.response()
-            .putHeader("content-type", "application/json; charset=utf-8")
-            .setStatusCode(403)
-            .end();
-
-        }
+      if (isAuthorized) {
+        break;
       }
-    });
+      context.user().isAuthorized(roles[i], authRes -> {
+        if (authRes.succeeded()) {
+          isAuthorized = authRes.result();
+        }
+      });
+    }
+    if(!isAuthorized) {
+      // Unauthorized request
+
+      context.response()
+        .putHeader("content-type", "application/json; charset=utf-8")
+        .setStatusCode(403)
+        .end();
+
+    } else {
+      // Authorized request
+
+      context.next();
+
+    }
   }
 }
