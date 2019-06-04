@@ -125,6 +125,8 @@ public class MainVerticle extends AbstractVerticle {
     LoginHandler loginHandler = new LoginHandler(dbClient, config(), authProvider, jwtProvider);
     // ActivationHandler
     ActivationHandler activationHandler = new ActivationHandler(dbClient, config(), redisClient);
+    // CardHandler
+    CardHandler cardHandler = new CardHandler(dbClient, config());
 
 
     /*
@@ -154,7 +156,9 @@ public class MainVerticle extends AbstractVerticle {
 //    router.route().handler(new TokenHeaderHandler());
     JWTAuthHandler jwtAuthHandler = JWTAuthHandler.create(jwtProvider);
     router.route("/api/users/*").handler(jwtAuthHandler);
+    router.route("/api/account/*").handler(jwtAuthHandler);
     router.route("/static/*").handler(jwtAuthHandler);
+    router.route("/api/acecard/*").handler(jwtAuthHandler);
 
     //// Handle register/login endpoints ////
     router.route("/api/register").handler(BodyHandler.create());
@@ -167,28 +171,32 @@ public class MainVerticle extends AbstractVerticle {
     router.route("/api/users").handler(new AuthorizationHandler("sysop"));
     router.get("/api/users").handler(userHandler::getUsers);
 
+    //// Account information ////
+    router.get("/api/account").handler(userHandler::getUserData);
+
     //// Ace Card ////
     router.post("/api/acecard").handler(BodyHandler.create()
-      .setUploadsDirectory("static/images")
-      .setBodyLimit(MB * 1));
-    router.post("/api/acecard").handler(ctx -> {
-      MultiMap attributes = ctx.request().formAttributes();
-      // do something with the form data
-      Set<FileUpload> uploads = ctx.fileUploads();
-      for (FileUpload file : uploads
-           ) {
-        System.out.println(file.contentType());
-        System.out.println(file.size());
-        System.out.println(file.name());
-        System.out.println(file.fileName());
-        System.out.println(file.uploadedFileName());
-        System.out.println(file.contentType());
-      }
-      System.out.println(uploads);
-      System.out.println(attributes);
-
-      ctx.response().end();
-    });
+      .setUploadsDirectory(config().getString("http.image_dir", "static/images/"))
+      .setBodyLimit(config().getInteger("http.max_image_mb", 1) * MB));
+    router.post("/api/acecard").handler(cardHandler::requestCard);
+//    router.post("/api/acecard").handler(ctx -> {
+//      MultiMap attributes = ctx.request().formAttributes();
+//      // do something with the form data
+//      Set<FileUpload> uploads = ctx.fileUploads();
+//      for (FileUpload file : uploads
+//           ) {
+//        System.out.println(file.contentType());
+//        System.out.println(file.size());
+//        System.out.println(file.name());
+//        System.out.println(file.fileName());
+//        System.out.println(file.uploadedFileName());
+//        System.out.println(file.contentType());
+//      }
+//      System.out.println(uploads);
+//      System.out.println(attributes);
+//
+//      ctx.response().end();
+//    });
 
     //// Serving profile image  ////
     router.route("/static/images/*").handler(new ProfileImageAuthorizationHandler());

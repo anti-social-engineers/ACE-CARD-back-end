@@ -3,10 +3,10 @@
 ---
 
 INSERT INTO addresses (id, address, address_num, city, postalcode, country)
-VALUES (1, 'Schermerhornstraat', 25, 'Rotterdam', '3066TG', 'NLD'),
-(2, 'Wijnhaven', 107, 'Rotterdam', '3011WN', 'NLD'),
-(3, 'Geerhoek', 167, 'Wouw', '4724EG', 'NLD'),
-(4, 'Edisonstraat', 145, 'Wijchen', '6604BV', 'NLD');
+VALUES ('7372a47b-9629-4037-aae4-e7494979b3c4', 'Schermerhornstraat', 25, 'Rotterdam', '3066TG', 'NLD'),
+('1c7ef92f-5424-438f-84f4-ba0158ad06e4', 'Wijnhaven', 107, 'Rotterdam', '3011WN', 'NLD'),
+('48812838-57c7-4289-86cd-f40a132d61b5', 'Geerhoek', 167, 'Wouw', '4724EG', 'NLD'),
+('5b214aa6-4fb6-4eca-aefa-62a4568be445', 'Edisonstraat', 145, 'Wijchen', '6604BV', 'NLD');
 
 
 ---
@@ -30,7 +30,7 @@ VALUES ('4e162c6c-cc6f-433f-a6aa-bb167a9d8480', 'randomCardSecretID', true, 19.9
 --- [CLUB]
 ---
 INSERT INTO clubs (id, min_age, club_address_id, owner_id, club_name)
-VALUES ('2d466140-f70b-4ac3-8156-ee922657bacd', 18, 2, '4f8c9c3c-c91d-4db0-9f8b-b8a6eb9dcc97', 'ClubAwsome');
+VALUES ('2d466140-f70b-4ac3-8156-ee922657bacd', 18, '1c7ef92f-5424-438f-84f4-ba0158ad06e4', '4f8c9c3c-c91d-4db0-9f8b-b8a6eb9dcc97', 'ClubAwsome');
 
 
 ---
@@ -38,15 +38,15 @@ VALUES ('2d466140-f70b-4ac3-8156-ee922657bacd', 18, 2, '4f8c9c3c-c91d-4db0-9f8b-
 --- Update user to have address and additional data
 ---
 UPDATE users
-SET first_name = 'Aaron', last_name = 'Beetstra', gender = 'Man', date_of_birth = '1999-01-18', address_id = 1
+SET first_name = 'Aaron', last_name = 'Beetstra', gender = 'Man', date_of_birth = '1999-01-18', address_id = '7372a47b-9629-4037-aae4-e7494979b3c4'
 WHERE id = 'a2b19f94-4fb1-48d3-9e35-b6e250979d5c';
 
 UPDATE users
-SET first_name = 'Selim', last_name = 'Aydi', gender = 'Man', date_of_birth = '1997-01-1', address_id = 4
+SET first_name = 'Selim', last_name = 'Aydi', gender = 'Man', date_of_birth = '1997-01-1', address_id = '48812838-57c7-4289-86cd-f40a132d61b5'
 WHERE id = 'e2005006-2d8a-4f6f-b557-f16da75519bf';
 
 UPDATE users
-SET first_name = 'Mr.', last_name = 'Awsome', gender = 'Man', date_of_birth = '1980-08-16', address_id = 3
+SET first_name = 'Mr.', last_name = 'Awsome', gender = 'Man', date_of_birth = '1980-08-16', address_id = '5b214aa6-4fb6-4eca-aefa-62a4568be445'
 WHERE id = '4f8c9c3c-c91d-4db0-9f8b-b8a6eb9dcc97';
 
 
@@ -54,4 +54,4 @@ WHERE id = '4f8c9c3c-c91d-4db0-9f8b-b8a6eb9dcc97';
 --- [PENALTIES]
 ---
 INSERT INTO penalties (id, date_received, handed_out_by_id, received_at_id, recipient_id_id, description)
-VALUES (1, '2019-05-16', '4f8c9c3c-c91d-4db0-9f8b-b8a6eb9dcc97', '2d466140-f70b-4ac3-8156-ee922657bacd', 'e2005006-2d8a-4f6f-b557-f16da75519bf', 'Verkocht coke');
+VALUES ('a2b19f94-4fb1-48d3-9e35-b6e250979d5c', '2019-05-16', '4f8c9c3c-c91d-4db0-9f8b-b8a6eb9dcc97', '2d466140-f70b-4ac3-8156-ee922657bacd', 'e2005006-2d8a-4f6f-b557-f16da75519bf', 'Verkocht coke');

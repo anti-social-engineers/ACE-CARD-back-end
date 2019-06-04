@@ -23,6 +23,8 @@ Example:
 {
   "http.port" : <int>,
   "http.ssl" : <boolean>,
+  "http.image_dir" : "",
+  "http.max_image_mb" : <int>,
   "db.host" : "",
   "db.port" : <int>,
   "db.name" : "",
