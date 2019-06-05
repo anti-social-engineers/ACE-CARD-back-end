@@ -188,7 +188,7 @@ public class MainVerticle extends AbstractVerticle {
 //    });
 
     //// Serving profile image  ////
-    router.route("/static/images/*").handler(new ProfileImageAuthorizationHandler());
+    router.route("/static/images/*").handler(new ProfileImageAuthorizationHandler(dbClient));
     router.route("/static/images/*").handler(StaticHandler.create().setWebRoot("static/images"));
 
     // HttpServer options

@@ -1,11 +1,23 @@
 package acecardapi.handlers;
 
+import io.reactiverse.pgclient.PgPool;
+import io.reactiverse.pgclient.Row;
+import io.reactiverse.pgclient.Tuple;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
 
+import java.util.UUID;
+
 public class ProfileImageAuthorizationHandler implements Handler<RoutingContext> {
+
+  PgPool dbClient;
+
+  public ProfileImageAuthorizationHandler(PgPool dbClient) {
+    this.dbClient = dbClient;
+  }
+
   @Override
   public void handle(RoutingContext context) {
     isRole(context, "sysop", sysopRes -> {
@@ -13,35 +25,46 @@ public class ProfileImageAuthorizationHandler implements Handler<RoutingContext>
         if (sysopRes.result()) {
           context.next();
         } else {
-          // TODO: CLUB ROLE
-          isRole(context, "someclubrole", clubRes -> {
+          isRole(context, "clubemployee", clubRes -> {
             if (clubRes.succeeded()) {
               if (clubRes.result()) {
-                context.response().setStatusCode(100).end("I have not yet been implemented... (Club requesting img.)");
+                context.next();
               } else {
+
                 // The role must be 'user', users may only request their own image!
-                String requestedFileWithExtension = context.request().path().substring(context.request().path().lastIndexOf("/") + 1);
+                String requestedFileUUID = context.request().path().substring(context.request().path().lastIndexOf("/") + 1);
 
-                if(requestedFileWithExtension.contains(".")) {
-                  String requestFile = requestedFileWithExtension.substring(0, requestedFileWithExtension.lastIndexOf('.'));
+                System.out.println(requestedFileUUID);
 
-                  if (requestFile.equals(context.user().principal().getString("sub"))) {
-                    context.next();
+                dbClient.preparedQuery("SELECT image_id FROM users WHERE id=$1", Tuple.of(UUID.fromString(context.user().principal().getString("sub"))), res -> {
+                  if (res.succeeded()) {
+                    Row row = res.result().iterator().next();
+
+                    if (row.getUUID("image_id").toString().equals(requestedFileUUID)) {
+
+                      // They are requesting their own profile image
+                      context.next();
+
+                    } else {
+
+                      // They are requesting an image they do not have access to
+
+                      context.response()
+                        .putHeader("content-type", "application/json; charset=utf-8")
+                        .putHeader("Cache-Control", "no-store, no-cache")
+                        .putHeader("X-Content-Type-Options", "nosniff")
+                        .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+                        .putHeader("X-Download-Options", "noopen")
+                        .putHeader("X-XSS-Protection", "1; mode=block")
+                        .putHeader("X-FRAME-OPTIONS", "DENY")
+                        .setStatusCode(403)
+                        .end();
+                    }
+
                   } else {
-                    // Unauthorized - Requesting a file which does not have their ID
-                    context.response()
-                      .setStatusCode(403)
-                      .putHeader("content-type", "application/json; charset=utf-8")
-                      .end();
+                    raise500(context);
                   }
-
-                } else {
-                  // A non-legit file was requested, raise 400.
-                  context.response()
-                    .setStatusCode(400)
-                    .putHeader("content-type", "application/json; charset=utf-8")
-                    .end();
-                }
+                });
 
               }
             } else {
@@ -76,6 +99,12 @@ public class ProfileImageAuthorizationHandler implements Handler<RoutingContext>
   private void raise500(RoutingContext context) {
     context.response()
       .setStatusCode(500)
+      .putHeader("Cache-Control", "no-store, no-cache")
+      .putHeader("X-Content-Type-Options", "nosniff")
+      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+      .putHeader("X-Download-Options", "noopen")
+      .putHeader("X-XSS-Protection", "1; mode=block")
+      .putHeader("X-FRAME-OPTIONS", "DENY")
       .putHeader("content-type", "application/json; charset=utf-8")
       .end();
   }
