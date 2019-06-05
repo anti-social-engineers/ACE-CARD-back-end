@@ -1,6 +1,7 @@
 {
   "http.port" : ,
   "http.image_dir" : "",
+  "http.temp_dir" : "",
   "http.max_image_mb" : ,
   "db.host" : "",
   "db.port" : ,

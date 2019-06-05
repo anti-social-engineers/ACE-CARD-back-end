@@ -17,6 +17,7 @@ import io.reactiverse.pgclient.PgPool;
 import io.reactiverse.pgclient.PgPoolOptions;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
+import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.net.PemKeyCertOptions;
@@ -26,11 +27,17 @@ import io.vertx.ext.auth.jwt.JWTAuthOptions;
 import io.vertx.ext.mail.MailClient;
 import io.vertx.ext.mail.MailConfig;
 import io.vertx.ext.mail.StartTLSOptions;
+import io.vertx.ext.web.FileUpload;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.*;
 import io.vertx.redis.RedisClient;
 import io.vertx.redis.RedisOptions;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -164,8 +171,9 @@ public class MainVerticle extends AbstractVerticle {
 
     //// Ace Card ////
     router.post("/api/acecard").handler(BodyHandler.create()
-      .setUploadsDirectory(config().getString("http.image_dir", "static/images/"))
-      .setBodyLimit(config().getInteger("http.max_image_mb", 1) * MB));
+      .setUploadsDirectory(config().getString("http.temp_dir", "static/temp/"))
+      .setBodyLimit(config().getInteger("http.max_image_mb", 1) * MB)
+      .setDeleteUploadedFilesOnEnd(true));
     router.post("/api/acecard").handler(cardHandler::requestCard);
 //    router.post("/api/acecard").handler(ctx -> {
 //      MultiMap attributes = ctx.request().formAttributes();
@@ -179,6 +187,15 @@ public class MainVerticle extends AbstractVerticle {
 //        System.out.println(file.fileName());
 //        System.out.println(file.uploadedFileName());
 //        System.out.println(file.contentType());
+//
+//        Path uploadedDir = Paths.get(file.uploadedFileName());
+//        Path destDir = Paths.get(config().getString("http.image_dir", "static/images/") + uploadedDir.getFileName());
+//
+//        try {
+//          Files.move(uploadedDir, destDir, StandardCopyOption.REPLACE_EXISTING);
+//        } catch (IOException e) {
+//          e.printStackTrace();
+//        }
 //      }
 //      System.out.println(uploads);
 //      System.out.println(attributes);

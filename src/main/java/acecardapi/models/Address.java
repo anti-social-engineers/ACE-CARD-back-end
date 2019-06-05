@@ -24,9 +24,9 @@ public class Address {
   private String country;
 
 
-  public Address(String address, String address_number, String address_annex, String city, String postalcode) {
+  public Address(String address, int address_number, String address_annex, String city, String postalcode) {
     this.address = address;
-    this.address_number = Integer.valueOf(address_number);
+    this.address_number = address_number;
     this.address_annex = address_annex;
     this.city = city;
     this.postalcode = postalcode;
