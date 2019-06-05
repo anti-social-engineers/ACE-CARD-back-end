@@ -11,6 +11,7 @@ package acecardapi.models;
 
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import org.owasp.encoder.Encode;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -38,17 +39,22 @@ public class ClubVisitor {
   }
 
   public JsonObject toJson() {
+    /*
+     Function which retruns the object to a JsonObject
+     which can be used as API response.
+     @return JsonObect
+     */
 
     JsonArray penaltieJsonArray = new JsonArray();
 
     for (String penalty: flags) {
-      penaltieJsonArray.add(penalty);
+      penaltieJsonArray.add(Encode.forHtml(penalty));
     }
 
     return new JsonObject()
-      .put("name", first_name)
-      .put("surname", last_name)
-      .put("dob", dob.toString())
+      .put("name", Encode.forHtml(first_name))
+      .put("surname", Encode.forHtml(last_name))
+      .put("dob", Encode.forHtml(dob.toString()))
       .put("image_path", image)
       .put("flags", penaltieJsonArray);
 

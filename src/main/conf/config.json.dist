@@ -14,5 +14,6 @@
   "mail.host" : "",
   "mail.port" : ,
   "mail.user" : "",
-  "mail.pass" : ""
+  "mail.pass" : "",
+  "card.encryptionkey" : ""
 }

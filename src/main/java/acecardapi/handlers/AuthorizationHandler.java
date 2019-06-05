@@ -11,10 +11,11 @@ package acecardapi.handlers;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class AuthorizationHandler implements Handler<RoutingContext> {
 
   private String[] roles;
-  private boolean isAuthorized = false;
 
   public AuthorizationHandler(String[] authRoles) {
     this.roles = authRoles;
@@ -23,18 +24,22 @@ public class AuthorizationHandler implements Handler<RoutingContext> {
   @Override
   public void handle(RoutingContext context) {
 
+    // Need to use an atomic boolean because it we are going to need to change it inside a async call later.
+    AtomicBoolean isAuthorized = new AtomicBoolean(false);
+
     for (int i = 0; i < roles.length; i++) {
 
-      if (isAuthorized) {
+      if (isAuthorized.get()) {
         break;
       }
       context.user().isAuthorized(roles[i], authRes -> {
         if (authRes.succeeded()) {
-          isAuthorized = authRes.result();
+          isAuthorized.set(authRes.result());
         }
       });
     }
-    if(!isAuthorized) {
+
+    if(!isAuthorized.get()) {
       // Unauthorized request
 
       context.response()

@@ -30,6 +30,9 @@ public class ClubHandler extends AbstractCustomHandler{
   }
 
   public void scanCard(RoutingContext context) {
+     /*
+     Function which handles the scanning of a Ace Card.
+     */
 
     JsonObject jsonInput = context.getBodyAsJson();
 
@@ -110,7 +113,16 @@ public class ClubHandler extends AbstractCustomHandler{
                           flags
                         );
 
-                        context.response().setStatusCode(200).end(Json.encodePrettily(visitor.toJson()));
+                        context.response()
+                          .setStatusCode(200)
+                          .putHeader("Cache-Control", "no-store, no-cache")
+                          .putHeader("X-Content-Type-Options", "nosniff")
+                          .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+                          .putHeader("X-Download-Options", "noopen")
+                          .putHeader("X-XSS-Protection", "1; mode=block")
+                          .putHeader("X-FRAME-OPTIONS", "DENY")
+                          .putHeader("content-type", "application/json; charset=utf-8")
+                          .end(Json.encodePrettily(visitor.toJson()));
                         connection.close();
 
 

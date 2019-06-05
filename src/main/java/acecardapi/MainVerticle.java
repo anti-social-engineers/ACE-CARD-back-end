@@ -27,13 +27,11 @@ import io.vertx.ext.auth.jwt.JWTAuthOptions;
 import io.vertx.ext.mail.MailClient;
 import io.vertx.ext.mail.MailConfig;
 import io.vertx.ext.mail.StartTLSOptions;
-import io.vertx.ext.web.FileUpload;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.*;
 import io.vertx.redis.RedisClient;
 import io.vertx.redis.RedisOptions;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -84,24 +82,6 @@ public class MainVerticle extends AbstractVerticle {
      */
     RedisClient redisClient = RedisClient.create(vertx,
       new RedisOptions().setHost(config().getString("redis.host", "127.0.0.1")));
-
-//    redisClient.set("testKeyOne", "ARANDOMVALUE", r -> {
-//      if (r.succeeded()) {
-//        System.out.println("KeyStored");
-//        redisClient.exists("testKeyOne", r2 -> {
-//          if (r2.succeeded()) {
-//            System.out.println(r2.result());
-//          }
-//          else {
-//            System.out.println(r2.cause().toString());
-//          }
-//        });
-//      }
-//      else {
-//        System.out.println(r.cause().toString());
-//        System.out.println("FAILURE");
-//      }
-//    });
 
 
     /*

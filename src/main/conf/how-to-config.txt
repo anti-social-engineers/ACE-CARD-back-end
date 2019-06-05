@@ -38,5 +38,6 @@ Example:
   "mail.port" : <int>,
   "mail.user" : "",
   "mail.pass" : "",
-  "registration.code_expire_time" : <int>
+  "registration.code_expire_time" : <int>,
+  "card.encryptionkey" : ""
 }
