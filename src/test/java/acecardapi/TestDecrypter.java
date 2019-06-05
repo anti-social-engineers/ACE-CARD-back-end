@@ -27,7 +27,7 @@ public class TestDecrypter {
   @Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
   void test_decryption() {
 
-    String encryptedValue = "TVobdap635jvPSW9KShf1ZuBDLDuh8a7syXEjl58+Vs=";
+    String encryptedValue = "TVobdap635jvPSW9KShf1ZuBDLDuh8a7syXEjl58+Vs=0000";
     String encryptionKey = "C*F-JaNdRgUjXn2r5u8x/A?D(G+KbPeS";
     String expectedValue = "1234567812345678";
 

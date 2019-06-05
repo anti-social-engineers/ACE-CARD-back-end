@@ -18,6 +18,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
+import java.util.ArrayList;
 import java.util.UUID;
 
 import static acecardapi.utils.AceCardDecrypter.decrypt;
@@ -89,10 +90,16 @@ public class ClubHandler extends AbstractCustomHandler{
 
                     connection.preparedQuery("SELECT description FROM penalties WHERE recipient_id_id=$1 ORDER BY date_received DESC LIMIT 3", Tuple.of(userId), res3 -> {
 
-                      // Build [] with penalties
-                      String[] penalties = new
-
                       if(res3.succeeded()) {
+
+                        ArrayList<String> flags = new ArrayList<>();
+
+                        PgRowSet penaltyRows = res3.result();
+
+                        for (Row row: penaltyRows)
+                        {
+                          flags.add(row.getString("description"));
+                        }
 
                         ClubVisitor visitor = new ClubVisitor(
                           userRow.getString("first_name"),
@@ -100,8 +107,11 @@ public class ClubHandler extends AbstractCustomHandler{
                           userRow.getLocalDate("date_of_birth"),
                           userRow.getUUID("image_id"),
                           config.getString("http.image_dir", "static/images/"),
+                          flags
+                        );
 
-                        )
+                        context.response().setStatusCode(200).end(Json.encodePrettily(visitor.toJson()));
+                        connection.close();
 
 
                       } else {

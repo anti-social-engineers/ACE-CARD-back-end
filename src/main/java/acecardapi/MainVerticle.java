@@ -179,6 +179,7 @@ public class MainVerticle extends AbstractVerticle {
 
 
     //// Club endpoints ////
+    router.post("/api/club/scan").handler(BodyHandler.create(false));
     router.route("/api/club/scan").handler(new AuthorizationHandler(new String[]{"sysop", "club_employee"}));
     router.post("/api/club/scan").handler(clubHandler::scanCard);
 

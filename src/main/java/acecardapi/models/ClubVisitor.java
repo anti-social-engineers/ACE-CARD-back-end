@@ -13,6 +13,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.UUID;
 
 public class ClubVisitor {
@@ -21,30 +22,35 @@ public class ClubVisitor {
   private String last_name;
   private LocalDate dob;
   private String image;
-  private String[] penalties;
+  private ArrayList<String> flags;
 
-  public ClubVisitor(String first_name, String last_name, LocalDate dob, UUID imageId, String imagePath, String[] penalties) {
+  public ClubVisitor(String first_name, String last_name, LocalDate dob, UUID imageId, String imagePath, ArrayList<String> penalties) {
     this.first_name = first_name;
     this.last_name = last_name;
     this.dob = dob;
-    this.image = imagePath + imageId.toString();
-    this.penalties = penalties;
+
+    if(imageId != null) {
+      this.image = imagePath + imageId.toString();
+    } else {
+      this.image = "";
+    }
+    this.flags = penalties;
   }
 
   public JsonObject toJson() {
 
-    JsonArray penaltiesArray = new JsonArray();
+    JsonArray penaltieJsonArray = new JsonArray();
 
-    for (String penalty: penalties) {
-      penaltiesArray.add(penalty);
+    for (String penalty: flags) {
+      penaltieJsonArray.add(penalty);
     }
 
     return new JsonObject()
       .put("name", first_name)
       .put("surname", last_name)
-      .put("dob", dob)
+      .put("dob", dob.toString())
       .put("image_path", image)
-      .put("penalties", penaltiesArray);
+      .put("flags", penaltieJsonArray);
 
   }
 }

@@ -11,9 +11,6 @@ package acecardapi.handlers;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
 
-import java.lang.reflect.Array;
-import java.util.ArrayList;
-
 public class AuthorizationHandler implements Handler<RoutingContext> {
 
   private String[] roles;
