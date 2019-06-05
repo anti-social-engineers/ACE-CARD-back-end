@@ -9,12 +9,9 @@
 package acecardapi.handlers;
 
 import acecardapi.apierrors.ParameterNotFoundViolation;
-import acecardapi.models.Account;
 import acecardapi.models.ClubVisitor;
-import acecardapi.models.Users;
 import io.reactiverse.pgclient.*;
 import io.vertx.core.json.Json;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
