@@ -32,40 +32,43 @@ public class ProfileImageAuthorizationHandler implements Handler<RoutingContext>
               } else {
 
                 // The role must be 'user', users may only request their own image!
+                // To remove an additional db call we will first check if the image is present inside the jwt token.
                 String requestedFileUUID = context.request().path().substring(context.request().path().lastIndexOf("/") + 1);
 
-                System.out.println(requestedFileUUID);
+                if (context.user().principal().getValue("profile_image").equals(requestedFileUUID)) {
+                  context.next();
+                } else {
+                  dbClient.preparedQuery("SELECT image_id FROM users WHERE id=$1", Tuple.of(UUID.fromString(context.user().principal().getString("sub"))), res -> {
+                    if (res.succeeded()) {
 
-                dbClient.preparedQuery("SELECT image_id FROM users WHERE id=$1", Tuple.of(UUID.fromString(context.user().principal().getString("sub"))), res -> {
-                  if (res.succeeded()) {
-                    Row row = res.result().iterator().next();
+                      Row row = res.result().iterator().next();
+                      UUID imageId = row.getUUID("image_id");
+                      if (imageId != null && imageId.toString().equals(requestedFileUUID)) {
 
-                    if (row.getUUID("image_id").toString().equals(requestedFileUUID)) {
+                        // They are requesting their own profile image
+                        context.next();
 
-                      // They are requesting their own profile image
-                      context.next();
+                      } else {
+
+                        // They are requesting an image they do not have access to
+
+                        context.response()
+                          .putHeader("content-type", "application/json; charset=utf-8")
+                          .putHeader("Cache-Control", "no-store, no-cache")
+                          .putHeader("X-Content-Type-Options", "nosniff")
+                          .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+                          .putHeader("X-Download-Options", "noopen")
+                          .putHeader("X-XSS-Protection", "1; mode=block")
+                          .putHeader("X-FRAME-OPTIONS", "DENY")
+                          .setStatusCode(403)
+                          .end();
+                      }
 
                     } else {
-
-                      // They are requesting an image they do not have access to
-
-                      context.response()
-                        .putHeader("content-type", "application/json; charset=utf-8")
-                        .putHeader("Cache-Control", "no-store, no-cache")
-                        .putHeader("X-Content-Type-Options", "nosniff")
-                        .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
-                        .putHeader("X-Download-Options", "noopen")
-                        .putHeader("X-XSS-Protection", "1; mode=block")
-                        .putHeader("X-FRAME-OPTIONS", "DENY")
-                        .setStatusCode(403)
-                        .end();
+                      raise500(context);
                     }
-
-                  } else {
-                    raise500(context);
-                  }
-                });
-
+                  });
+                }
               }
             } else {
               raise500(context);

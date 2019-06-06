@@ -67,7 +67,6 @@ public class LoginHandler extends AbstractCustomHandler{
     // Verify if email is activated
 
     dbAuth.authenticate(users.toJsonObjectLogin(), userRes -> {
-      // TODO: MAKE FUNCTIONS
       // Important note: This is reactive programming, e.g. async. Use Futures etc. to handle that.
 
       if(userRes.succeeded()) {
@@ -77,7 +76,7 @@ public class LoginHandler extends AbstractCustomHandler{
         UUID id = UUID.fromString(logged_user.principal().getString("id"));
 
         // Check if the user has a verified email:
-        dbClient.preparedQuery("SELECT is_email_verified, role FROM users WHERE id=$1", Tuple.of(id), res -> {
+        dbClient.preparedQuery("SELECT is_email_verified, role, image_id FROM users WHERE id=$1", Tuple.of(id), res -> {
           if (res.succeeded()) {
             PgRowSet result = res.result();
 
@@ -106,9 +105,17 @@ public class LoginHandler extends AbstractCustomHandler{
 
               } else {
 
+                String profile_image;
+                var db_profile_image = row.getUUID("image_id");
+                if (db_profile_image != null) {
+                  profile_image = db_profile_image.toString();
+                } else
+                  profile_image = "";
+
                 String token = jwtProvider.generateToken(new JsonObject()
                     .put("sub", logged_user.principal().getString("id"))
-                    .put("permissions", new JsonArray().add(row.getString("role"))),
+                    .put("permissions", new JsonArray().add(row.getString("role")))
+                    .put("profile_image", profile_image),
                   new JWTOptions().setExpiresInSeconds(config.getInteger("jwt.exptime", 32400)));
 
                 context.response()
