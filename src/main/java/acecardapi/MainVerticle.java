@@ -17,7 +17,6 @@ import io.reactiverse.pgclient.PgPool;
 import io.reactiverse.pgclient.PgPoolOptions;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
-import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.net.PemKeyCertOptions;
@@ -27,17 +26,11 @@ import io.vertx.ext.auth.jwt.JWTAuthOptions;
 import io.vertx.ext.mail.MailClient;
 import io.vertx.ext.mail.MailConfig;
 import io.vertx.ext.mail.StartTLSOptions;
-import io.vertx.ext.web.FileUpload;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.*;
 import io.vertx.redis.RedisClient;
 import io.vertx.redis.RedisOptions;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -59,7 +52,7 @@ public class MainVerticle extends AbstractVerticle {
       .setDatabase(config().getString("db.name", "ase_acecard_test_database"))
       .setUser(config().getString("db.user", "acecard"))
       .setPassword(config().getString("db.pass", "acecard"))
-      .setMaxSize(config().getInteger("db.maxc", 5))
+      .setMaxSize(config().getInteger("db.maxc", 1))
       .setTcpKeepAlive(true);
 
     // Create the pooled client

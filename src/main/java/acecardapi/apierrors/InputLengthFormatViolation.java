@@ -1,17 +1,17 @@
 /*
- * Copyright 2019 Aaron Beetstra & Anti-Social Engineers
+ * Copyright (c) 2019. Aaron Beetstra & Anti-Social Engineers
  *
  *  All rights reserved. This program and the accompanying materials
- *  are made available under the terms of the MIT license.
+ * are made available under the terms of the MIT license.
  *
  */
 
 package acecardapi.apierrors;
 
-public class InputFormatViolation extends FieldViolation {
+public class InputLengthFormatViolation extends FieldViolation {
 
-  public InputFormatViolation(String field) {
-    super(false, "input_format_violation");
+  public InputLengthFormatViolation(String field) {
+    super(false, "input_length_format_violation");
     this.field = field;
   }
 }

@@ -8,5 +8,11 @@
 
 package acecardapi.utils;
 
-public class Tuple {
+public class DTuple<A, B> {
+  public final A frst;
+  public final B scnd;
+  public DTuple(A frst, B scnd) {
+    this.frst = frst;
+    this.scnd = scnd;
+  }
 }

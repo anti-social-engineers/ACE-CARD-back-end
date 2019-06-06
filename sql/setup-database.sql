@@ -245,15 +245,6 @@ ALTER TABLE ONLY users
 
 
 --
--- TOC entry 2045 (class 2606 OID 72605)
--- Name: users users_first_name_last_name_date_of_birth_0ff19396_uniq; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY users
-    ADD CONSTRAINT users_first_name_last_name_date_of_birth_0ff19396_uniq UNIQUE (first_name, last_name, date_of_birth);
-
-
---
 -- TOC entry 2047 (class 2606 OID 72569)
 -- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --

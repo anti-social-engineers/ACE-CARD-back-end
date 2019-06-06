@@ -8,12 +8,10 @@
 
 package acecardapi.handlers;
 
-import acecardapi.apierrors.ApiError;
-import acecardapi.apierrors.FieldViolation;
-import acecardapi.apierrors.InputFormatViolation;
-import acecardapi.apierrors.ParameterNotFoundViolation;
+import acecardapi.apierrors.*;
 import acecardapi.models.Address;
 import acecardapi.models.Card;
+import acecardapi.utils.DTuple;
 import io.reactiverse.pgclient.*;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -30,13 +28,30 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import static java.util.Map.entry;
+
 public class CardHandler extends AbstractCustomHandler{
 
-  String[] requiredCardAttributes = new String[]{"address", "address_number", "address_annex", "city", "postalcode",
+  private String[] requiredCardAttributes = new String[]{"address", "address_number", "address_annex", "city", "postalcode",
     "first_name", "last_name", "gender", "dob"};
+
+  private Map<String, DTuple<Integer, Integer>> attributeLengthMap = Map.ofEntries(
+    entry("address", new DTuple<Integer, Integer>(3, 255)),
+    entry("address_number", new DTuple<Integer, Integer>(1, 4)),
+    entry("address_annex", new DTuple<Integer, Integer>(0, 1)),
+    entry("city", new DTuple<Integer, Integer>(2, 255)),
+    entry("postalcode", new DTuple<Integer, Integer>(6, 6)),
+    entry("first_name", new DTuple<Integer, Integer>(2, 255)),
+    entry("last_name", new DTuple<Integer, Integer>(2, 255)),
+    entry("gender", new DTuple<Integer, Integer>(1, 1)),
+    entry("dob", new DTuple<Integer, Integer>(10, 10))
+    );
+
+  private String[] allowedContentTypes = new String[]{"image/png", "image/jpeg"};
 
   public CardHandler(PgPool dbClient, JsonObject config) {
     super(dbClient, config);
@@ -51,106 +66,145 @@ public class CardHandler extends AbstractCustomHandler{
 
       if (attributeRes.succeeded()) {
 
-        Set<FileUpload> uploads = context.fileUploads();
+        // Check of alle attributen de min/max lengte hebben:
+        checkIfStringsValid(attributes, attributeLengthRes -> {
 
-        checkIfProfileImagePresentCardRequest(uploads, fileRes -> {
+          if (attributeLengthRes.succeeded()) {
 
-          if (fileRes.succeeded()) {
+            Set<FileUpload> uploads = context.fileUploads();
 
-            FileUpload file = fileRes.result();
+            // Check of de correcte file is geupload (correcte parameter):
+            checkIfProfileImagePresentCardRequest(uploads, fileRes -> {
 
-            streetNumberIsInt(attributes.get("address_number"), intRes -> {
+              if (fileRes.succeeded()) {
 
-              if (intRes.succeeded()) {
+                FileUpload file = fileRes.result();
 
-                int address_number = intRes.result();
-                String street = attributes.get("address");
-                String annex = attributes.get("address_annex");
-                String city = attributes.get("city");
-                String postalcode = attributes.get("postalcode");
+                // Check of de content-type van de file wel png of jpg is (Als er hier door komen maakt het niet
+                // veel uit, files in de upload directory worden niet uitgevoerd)
+                checkFileContentType(file, fileContentRes -> {
 
-                Address address = new Address(
-                  street,
-                  address_number,
-                  annex,
-                  city,
-                  postalcode
-                );
+                  if (fileContentRes.succeeded()) {
 
-                Card card = new Card(
-                  UUID.fromString(context.user().principal().getString("sub"))
-                );
+                    // Controleren of de
+                    streetNumberIsInt(attributes.get("address_number"), intRes -> {
 
-                // TODO: CLOSE CONNECTION - Function to check if all fields are present - ONLY USER WITH NO CARD CAN ACCESS THIS ENDPOINT
-                dbClient.getConnection(getConnection -> {
-                  if (getConnection.succeeded()) {
-                    PgConnection connection = getConnection.result();
+                      if (intRes.succeeded()) {
 
-                    // Eerst address (insert or get)
-                    // Dan User (update)
-                    // Dan Cards (Insert)
+                        int address_number = intRes.result();
+                        String street = attributes.get("address");
+                        String annex = attributes.get("address_annex");
+                        String city = attributes.get("city");
+                        String postalcode = attributes.get("postalcode");
+                        UUID userId = UUID.fromString(context.user().principal().getString("sub"));
 
-                    connection.preparedQuery("INSERT INTO addresses (id, address, address_num, address_annex, city, postalcode, country) VALUES ($1, $2, $3, $4, $5, $6, $7)", address.toTupleWithId(), query_address -> {
-                      if (query_address.succeeded()) {
+                        Address address = new Address(
+                          street,
+                          address_number,
+                          annex,
+                          city,
+                          postalcode
+                        );
 
-                        connection.close();
-                        processRequestCard(context, connection, address.getId(), card, file);
+                        Card card = new Card(
+                          userId
+                        );
 
-                      } else {
+                        dbClient.getConnection(getConnection -> {
+                          if (getConnection.succeeded()) {
+                            PgConnection connection = getConnection.result();
 
-                        if (query_address.cause() instanceof PgException) {
-                          String error_Code = ((PgException) query_address.cause()).getCode();
+                            connection.preparedQuery("SELECT id FROM cards WHERE EXISTS (SELECT * FROM users WHERE users.id = cards.user_id_id and users.id = $1)", Tuple.of(userId), hasCardRes -> {
 
-                          // PostgreSQL error 23505 (e.g. unique constraint failure)
-                          if (error_Code.equals("23505")) {
+                              if (hasCardRes.succeeded()) {
 
-                            connection.preparedQuery("SELECT id FROM addresses WHERE address=$1 AND address_num=$2 AND address_annex=$3 AND city=$4 AND postalcode=$5 AND country=$6", address.toTupleNoId(), query_get_address -> {
+                                if (hasCardRes.result().rowCount() <= 0) {
 
-                              if (query_get_address.succeeded()) {
+                                  connection.preparedQuery("INSERT INTO addresses (id, address, address_num, address_annex, city, postalcode, country) VALUES ($1, $2, $3, $4, $5, $6, $7)", address.toTupleWithId(), query_address -> {
+                                    if (query_address.succeeded()) {
 
-                                PgRowSet result = query_get_address.result();
+                                      processRequestCard(context, connection, address.getId(), card, file);
 
-                                if (result.rowCount() != 1) {
-                                  connection.close();
-                                  raise500(context);
+                                    } else {
+
+                                      if (query_address.cause() instanceof PgException) {
+                                        String error_Code = ((PgException) query_address.cause()).getCode();
+
+                                        // PostgreSQL error 23505 (e.g. unique constraint failure)
+                                        if (error_Code.equals("23505")) {
+
+                                          connection.preparedQuery("SELECT id FROM addresses WHERE address=$1 AND address_num=$2 AND address_annex=$3 AND city=$4 AND postalcode=$5 AND country=$6", address.toTupleNoId(), query_get_address -> {
+
+                                            if (query_get_address.succeeded()) {
+
+                                              PgRowSet result = query_get_address.result();
+
+                                              if (result.rowCount() != 1) {
+                                                connection.close();
+                                                raise500(context);
+                                              } else {
+                                                Row row = result.iterator().next();
+
+                                                // Go to the next step: The user
+                                                processRequestCard(context, connection, row.getUUID("id"), card, file);
+                                              }
+                                            } else {
+                                              raise500(context);
+                                              connection.close();
+                                            }
+                                          });
+                                        } else {
+                                          raise500(context);
+                                          connection.close();
+                                        }
+                                      }
+                                    }
+                                  });
                                 } else {
-                                  Row row = result.iterator().next();
-
-                                  // Go to the next step: The user
+                                  // Already has an ace card
+                                  context.response()
+                                    .setStatusCode(409)
+                                    .putHeader("Cache-Control", "no-store, no-cache")
+                                    .putHeader("X-Content-Type-Options", "nosniff")
+                                    .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+                                    .putHeader("X-Download-Options", "noopen")
+                                    .putHeader("X-XSS-Protection", "1; mode=block")
+                                    .putHeader("X-FRAME-OPTIONS", "DENY")
+                                    .putHeader("content-type", "application/json; charset=utf-8")
+                                    .end();
                                   connection.close();
-                                  processRequestCard(context, connection, row.getUUID("id"), card, file);
                                 }
                               } else {
-
-                                System.out.println(query_get_address.cause().toString());
-
-                                connection.close();
                                 raise500(context);
+                                connection.close();
                               }
                             });
                           } else {
-                            connection.close();
                             raise500(context);
                           }
-                        }
+                        });
+                      } else {
+                        InputFormatViolation error = new InputFormatViolation("address_number");
+                        raise422(context, error);
                       }
                     });
                   } else {
-                    raise500(context);
+                    FileFormatViolation error = new FileFormatViolation("profile_image", fileContentRes.cause().getMessage());
+                    raise422(context, error);
                   }
                 });
               } else {
-                InputFormatViolation error = new InputFormatViolation("address_number");
+                ParameterNotFoundViolation error = new ParameterNotFoundViolation("profile_image");
                 raise422(context, error);
               }
             });
           } else {
-            InputFormatViolation error = new InputFormatViolation("profile_image");
+            InputLengthFormatViolation error = new InputLengthFormatViolation(attributeLengthRes.cause().getMessage());
             raise422(context, error);
           }
         });
       } else {
-        ParameterNotFoundViolation error = new ParameterNotFoundViolation(attributeRes.result());
+        ParameterNotFoundViolation error = new ParameterNotFoundViolation(attributeRes.cause().getMessage());
         raise422(context, error);
       }
     });
@@ -160,7 +214,7 @@ public class CardHandler extends AbstractCustomHandler{
                                   FileUpload profileImage) {
 
     // First we need to update the user
-    updateUserEntry(context, connection, addressId, card, updateUserRes -> {
+    updateUserEntry(context, connection, addressId, profileImage, updateUserRes -> {
       if (updateUserRes.succeeded()) {
 
         // User has been updated, now we need to create his card:
@@ -202,9 +256,8 @@ public class CardHandler extends AbstractCustomHandler{
     });
   }
 
-  private void updateUserEntry(RoutingContext context, PgConnection connection, UUID addressId, Card card, Handler<AsyncResult<Boolean>> resultHandler) {
+  private void updateUserEntry(RoutingContext context, PgConnection connection, UUID addressId, FileUpload file, Handler<AsyncResult<Boolean>> resultHandler) {
     // Transaction to update the user and create a card
-    // TODO: ADD IMAGE (Add image here already, but only move it after all other operations succeeded)
 
     MultiMap attributes = context.request().formAttributes();
     String first_name = attributes.get("first_name");
@@ -212,8 +265,10 @@ public class CardHandler extends AbstractCustomHandler{
     String gender = attributes.get("gender");
     LocalDate dob = LocalDate.parse(attributes.get("dob"));
     UUID userId = UUID.fromString(context.user().principal().getString("sub"));
+    Path uploadedDir = Paths.get(file.uploadedFileName());
+    UUID imageId = UUID.fromString(uploadedDir.getFileName().toString());
 
-    connection.preparedQuery("UPDATE users SET first_name=$1, last_name=$2, gender=$3, date_of_birth=$4, address_id=$5 WHERE id=$6", Tuple.of(first_name, last_name, gender, dob, addressId, userId), res -> {
+    connection.preparedQuery("UPDATE users SET first_name=$1, last_name=$2, gender=$3, date_of_birth=$4, address_id=$5, image_id=$6 WHERE id=$7", Tuple.of(first_name, last_name, gender, dob, addressId, imageId, userId), res -> {
       if(res.succeeded()) {
         resultHandler.handle(Future.succeededFuture(true));
       } else {
@@ -221,6 +276,7 @@ public class CardHandler extends AbstractCustomHandler{
       }
     });
   }
+
 
   private void createCardEntry(PgConnection connection, Card card, Handler<AsyncResult<Boolean>> resultHandler) {
     connection.preparedQuery("INSERT INTO cards (id, requested_at, user_id_id) VALUES ($1, $2, $3)", card.toTuple(), res -> {
@@ -234,15 +290,18 @@ public class CardHandler extends AbstractCustomHandler{
 
   private void checkIfAttributesPresentCardRequest(MultiMap attributes, Handler<AsyncResult<String>> resultHandler) {
 
+    boolean failed = false;
+
     for (int i = 0; i < requiredCardAttributes.length; i++) {
 
       if (!attributes.contains(requiredCardAttributes[i])) {
-        System.out.println("Attribute missing...");
+        failed = true;
         resultHandler.handle(Future.failedFuture(requiredCardAttributes[i]));
         break;
       }
     }
-    resultHandler.handle(Future.succeededFuture(""));
+    if (!failed)
+      resultHandler.handle(Future.succeededFuture(""));
   }
 
   private void checkIfProfileImagePresentCardRequest(Set<FileUpload> uploads, Handler<AsyncResult<FileUpload>> resultHandler) {
@@ -258,11 +317,35 @@ public class CardHandler extends AbstractCustomHandler{
     }
 
     if (correctFile != null) {
-      resultHandler.handle(Future.succeededFuture());
+      resultHandler.handle(Future.succeededFuture(correctFile));
     } else {
       resultHandler.handle(Future.failedFuture("profile_image"));
     }
 
+  }
+
+  private void checkIfStringsValid(MultiMap attributes, Handler<AsyncResult<String>> resultHandler) {
+
+    boolean failure = false;
+    String inspecting = "";
+    String key = "";
+
+    for (Map.Entry<String, DTuple<Integer, Integer>> entry : attributeLengthMap.entrySet()) {
+
+      inspecting = attributes.get(entry.getKey());
+
+      if(inspecting.length() < entry.getValue().frst || inspecting.length() > entry.getValue().scnd) {
+        failure = true;
+        key = entry.getKey();
+        break;
+      }
+    }
+
+    if (failure) {
+      resultHandler.handle(Future.failedFuture(key));
+    } else {
+      resultHandler.handle(Future.succeededFuture(""));
+    }
   }
 
   private void streetNumberIsInt(String number, Handler<AsyncResult<Integer>> resultHandler) {
@@ -271,6 +354,25 @@ public class CardHandler extends AbstractCustomHandler{
       resultHandler.handle(Future.succeededFuture(address_number));
     } catch (NumberFormatException e) {
       resultHandler.handle(Future.failedFuture(""));
+    }
+  }
+
+  private void checkFileContentType(FileUpload file, Handler<AsyncResult<String>> resultHandler) {
+
+    boolean invalidContentType = true;
+
+    for (int i = 0; i < allowedContentTypes.length; i++) {
+
+      if(file.contentType().equals(allowedContentTypes[i])) {
+        invalidContentType = false;
+        break;
+      }
+    }
+
+    if(invalidContentType) {
+      resultHandler.handle(Future.failedFuture(file.contentType()));
+    } else {
+      resultHandler.handle(Future.succeededFuture(file.contentType()));
     }
   }
 
@@ -306,6 +408,7 @@ public class CardHandler extends AbstractCustomHandler{
     // Move the uploaded file to it's permanent directory
 
     Path uploadedDir = Paths.get(file.uploadedFileName());
+
     Path destDir = Paths.get(config.getString("http.image_dir", "static/images/") + uploadedDir.getFileName());
 
     try {
@@ -315,6 +418,4 @@ public class CardHandler extends AbstractCustomHandler{
       resultHandler.handle(Future.failedFuture("Moving profile image failed: " + e.toString()));
     }
   }
-
 }
-
