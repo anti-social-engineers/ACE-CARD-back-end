@@ -15,6 +15,7 @@ import acecardapi.models.Card;
 import acecardapi.models.CardRequest;
 import acecardapi.utils.DTuple;
 import io.reactiverse.pgclient.*;
+import io.sentry.Sentry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -22,7 +23,6 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.auth.AuthProvider;
 import io.vertx.ext.web.FileUpload;
 import io.vertx.ext.web.RoutingContext;
 
@@ -69,8 +69,6 @@ public class CardHandler extends AbstractCustomHandler{
   }
 
   public void requestCard(RoutingContext context) {
-
-    System.out.println("!!!");
 
     MultiMap attributes = context.request().formAttributes();
 
@@ -154,7 +152,7 @@ public class CardHandler extends AbstractCustomHandler{
 
                                               if (result.rowCount() != 1) {
                                                 connection.close();
-                                                raise500(context);
+                                                raise500(context, query_address.cause());
                                               } else {
                                                 Row row = result.iterator().next();
 
@@ -162,14 +160,12 @@ public class CardHandler extends AbstractCustomHandler{
                                                 processRequestCard(context, connection, row.getUUID("id"), card, file);
                                               }
                                             } else {
-                                              System.out.println(query_address.cause().toString());
-                                              raise500(context);
+                                              raise500(context, query_address.cause());
                                               connection.close();
                                             }
                                           });
                                         } else {
-                                          System.out.println(query_address.cause().toString());
-                                          raise500(context);
+                                          raise500(context, query_address.cause());
                                           connection.close();
                                         }
                                       }
@@ -190,13 +186,12 @@ public class CardHandler extends AbstractCustomHandler{
                                   connection.close();
                                 }
                               } else {
-                                System.out.println(hasCardRes.cause().toString());
-                                raise500(context);
+                                raise500(context, hasCardRes.cause());
                                 connection.close();
                               }
                             });
                           } else {
-                            raise500(context);
+                            raise500(context, getConnection.cause());
                           }
                         });
                       } else {
@@ -256,20 +251,17 @@ public class CardHandler extends AbstractCustomHandler{
                   .end();
 
               } else {
-                System.out.println(imageMoveRes.cause().toString());
-                raise500(context);
+                raise500(context, imageMoveRes.cause());
               }
             });
 
           } else {
-            System.out.println(createCardRes.cause().toString());
-            raise500(context);
+            raise500(context, createCardRes.cause());
             connection.close();
           }
         });
       } else {
-        System.out.println(updateUserRes.cause().toString());
-        raise500(context);
+        raise500(context, updateUserRes.cause());
         connection.close();
       }
     });
@@ -400,7 +392,7 @@ public class CardHandler extends AbstractCustomHandler{
 
       } else {
         // DB issue
-        raise500(context);
+        raise500(context, res.cause());
       }
 
     });
@@ -494,20 +486,19 @@ public class CardHandler extends AbstractCustomHandler{
                   .end(Json.encodePrettily(jsonObject));
 
               } else {
-                raise500(context);
+                raise500(context, cardRes.cause());
                 connection.close();
               }
             });
 
 
           } else {
-            System.out.println(userRes.cause().toString());
-            raise500(context);
+            raise500(context, userRes.cause());
           }
         });
       } else {
         // DB error
-        raise500(context);
+        raise500(context, getConnectionRes.cause());
       }
     });
 
@@ -517,36 +508,6 @@ public class CardHandler extends AbstractCustomHandler{
       .setStatusCode(200)
       .end();
 
-  }
-
-  private void raise500(RoutingContext context) {
-
-    context.response()
-      .setStatusCode(500)
-      .putHeader("Cache-Control", "no-store, no-cache")
-      .putHeader("X-Content-Type-Options", "nosniff")
-      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
-      .putHeader("X-Download-Options", "noopen")
-      .putHeader("X-XSS-Protection", "1; mode=block")
-      .putHeader("X-FRAME-OPTIONS", "DENY")
-      .putHeader("content-type", "application/json; charset=utf-8")
-      .end();
-  }
-
-  private void raise422(RoutingContext context, ApiError error) {
-
-    System.out.println(error.errorJson());
-
-    context.response()
-      .setStatusCode(422)
-      .putHeader("Cache-Control", "no-store, no-cache")
-      .putHeader("X-Content-Type-Options", "nosniff")
-      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
-      .putHeader("X-Download-Options", "noopen")
-      .putHeader("X-XSS-Protection", "1; mode=block")
-      .putHeader("X-FRAME-OPTIONS", "DENY")
-      .putHeader("content-type", "application/json; charset=utf-8")
-      .end(Json.encodePrettily(error.errorJson()));
   }
 
   private void moveFile(FileUpload file, Handler<AsyncResult<Boolean>> resultHandler) {

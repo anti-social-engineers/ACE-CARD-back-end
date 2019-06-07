@@ -13,6 +13,7 @@ import acecardapi.apierrors.PathParameterViolation;
 import io.reactiverse.pgclient.PgPool;
 import io.reactiverse.pgclient.PgRowSet;
 import io.reactiverse.pgclient.Tuple;
+import io.sentry.Sentry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -84,6 +85,9 @@ public class ActivationHandler extends AbstractCustomHandler {
                   .setStatusCode(500)
                   .putHeader("content-type", "application/json; charset=utf-8")
                   .end();
+
+                if (config.getBoolean("debug.enabled", false))
+                  Sentry.capture(updateResult.cause());
               }
             });
           }
@@ -96,6 +100,9 @@ public class ActivationHandler extends AbstractCustomHandler {
             .setStatusCode(500)
             .putHeader("content-type", "application/json; charset=utf-8")
             .end();
+
+          if (config.getBoolean("debug.enabled", false))
+            Sentry.capture(res.cause());
         }
       });
     }

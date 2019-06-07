@@ -15,6 +15,7 @@ import acecardapi.handlers.*;
 import io.reactiverse.pgclient.PgClient;
 import io.reactiverse.pgclient.PgPool;
 import io.reactiverse.pgclient.PgPoolOptions;
+import io.sentry.Sentry;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.http.HttpMethod;
@@ -41,6 +42,15 @@ public class MainVerticle extends AbstractVerticle {
 
   @Override
   public void start(Future<Void> startFuture) throws Exception {
+
+    /*
+    Setup Sentry for Debugging
+     */
+    if (config().getBoolean("debug.enabled", false)) {
+      System.out.println("Sentry enabled!");
+      String dsn = config().getString("sentry.dsn");
+      Sentry.init(dsn);
+    }
 
     // Create the router
     final Router router = Router.router(vertx);

@@ -14,6 +14,7 @@ import acecardapi.auth.ReactiveAuth;
 import acecardapi.models.JwtToken;
 import acecardapi.models.Users;
 import io.reactiverse.pgclient.*;
+import io.sentry.Sentry;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -59,6 +60,9 @@ public class LoginHandler extends AbstractCustomHandler{
         .setStatusCode(500)
         .putHeader("content-type", "application/json; charset=utf-8")
         .end("Something went wrong...");
+
+      if (config.getBoolean("debug.enabled", false))
+        Sentry.capture(e);
 
       return;
 
@@ -130,6 +134,9 @@ public class LoginHandler extends AbstractCustomHandler{
               .putHeader("content-type", "application/json; charset=utf-8")
               .setStatusCode(500)
               .end();
+
+            if (config.getBoolean("debug.enabled", false))
+              Sentry.capture(res.cause());
 
           }
         });
