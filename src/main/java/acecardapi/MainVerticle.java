@@ -163,6 +163,7 @@ public class MainVerticle extends AbstractVerticle {
     router.route("/api/acecard/*").handler(jwtAuthHandler);
     router.route("/api/club/*").handler(jwtAuthHandler);
     router.route("/api/administration/*").handler(jwtAuthHandler);
+    router.route("/api/payments/*").handler(jwtAuthHandler);
 
     //// Handle register/login endpoints ////
     router.route("/api/register").handler(BodyHandler.create(false));
