@@ -9,6 +9,7 @@
 package acecardapi.handlers;
 
 import acecardapi.apierrors.*;
+import acecardapi.auth.ReactiveAuth;
 import acecardapi.models.Address;
 import acecardapi.models.Card;
 import acecardapi.models.CardRequest;
@@ -21,6 +22,7 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.auth.AuthProvider;
 import io.vertx.ext.web.FileUpload;
 import io.vertx.ext.web.RoutingContext;
 
@@ -30,19 +32,24 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import static acecardapi.utils.RequestUtilities.attributesCheckJsonObject;
+import static acecardapi.utils.RequestUtilities.attributesCheckMultiMap;
 import static java.util.Map.entry;
 
 public class CardHandler extends AbstractCustomHandler{
 
+  ReactiveAuth authProvider;
+
   private String[] requiredCardAttributes = new String[]{"address", "address_number", "address_annex", "city", "postalcode",
     "first_name", "last_name", "gender", "dob"};
 
-  private Map<String, DTuple<Integer, Integer>> attributeLengthMap = Map.ofEntries(
+  private String[] requiredLinkAttributes = new String[]{"card_code", "email"};
+
+  private Map<String, DTuple<Integer, Integer>> attributeCardLengthMap = Map.ofEntries(
     entry("address", new DTuple<Integer, Integer>(3, 255)),
     entry("address_number", new DTuple<Integer, Integer>(1, 4)),
     entry("address_annex", new DTuple<Integer, Integer>(0, 1)),
@@ -56,8 +63,9 @@ public class CardHandler extends AbstractCustomHandler{
 
   private String[] allowedContentTypes = new String[]{"image/png", "image/jpeg"};
 
-  public CardHandler(PgPool dbClient, JsonObject config) {
+  public CardHandler(PgPool dbClient, JsonObject config, ReactiveAuth authProvider) {
     super(dbClient, config);
+    this.authProvider = authProvider;
   }
 
   public void requestCard(RoutingContext context) {
@@ -65,7 +73,7 @@ public class CardHandler extends AbstractCustomHandler{
     MultiMap attributes = context.request().formAttributes();
 
     // Check if all required fields are present:
-    checkIfAttributesPresentCardRequest(attributes, attributeRes -> {
+    attributesCheckMultiMap(attributes, requiredCardAttributes, attributeRes -> {
 
       if (attributeRes.succeeded()) {
 
@@ -152,11 +160,13 @@ public class CardHandler extends AbstractCustomHandler{
                                                 processRequestCard(context, connection, row.getUUID("id"), card, file);
                                               }
                                             } else {
+                                              System.out.println(query_address.cause().toString());
                                               raise500(context);
                                               connection.close();
                                             }
                                           });
                                         } else {
+                                          System.out.println(query_address.cause().toString());
                                           raise500(context);
                                           connection.close();
                                         }
@@ -178,6 +188,7 @@ public class CardHandler extends AbstractCustomHandler{
                                   connection.close();
                                 }
                               } else {
+                                System.out.println(hasCardRes.cause().toString());
                                 raise500(context);
                                 connection.close();
                               }
@@ -243,16 +254,19 @@ public class CardHandler extends AbstractCustomHandler{
                   .end();
 
               } else {
+                System.out.println(imageMoveRes.cause().toString());
                 raise500(context);
               }
             });
 
           } else {
+            System.out.println(createCardRes.cause().toString());
             raise500(context);
             connection.close();
           }
         });
       } else {
+        System.out.println(updateUserRes.cause().toString());
         raise500(context);
         connection.close();
       }
@@ -291,22 +305,6 @@ public class CardHandler extends AbstractCustomHandler{
     });
   }
 
-  private void checkIfAttributesPresentCardRequest(MultiMap attributes, Handler<AsyncResult<String>> resultHandler) {
-
-    boolean failed = false;
-
-    for (int i = 0; i < requiredCardAttributes.length; i++) {
-
-      if (!attributes.contains(requiredCardAttributes[i])) {
-        failed = true;
-        resultHandler.handle(Future.failedFuture(requiredCardAttributes[i]));
-        break;
-      }
-    }
-    if (!failed)
-      resultHandler.handle(Future.succeededFuture(""));
-  }
-
   private void checkIfProfileImagePresentCardRequest(Set<FileUpload> uploads, Handler<AsyncResult<FileUpload>> resultHandler) {
     // Check if the required file is present.
 
@@ -333,7 +331,7 @@ public class CardHandler extends AbstractCustomHandler{
     String inspecting = "";
     String key = "";
 
-    for (Map.Entry<String, DTuple<Integer, Integer>> entry : attributeLengthMap.entrySet()) {
+    for (Map.Entry<String, DTuple<Integer, Integer>> entry : attributeCardLengthMap.entrySet()) {
 
       inspecting = attributes.get(entry.getKey());
 
@@ -409,8 +407,6 @@ public class CardHandler extends AbstractCustomHandler{
 
   private void gatherUserCardData(Handler<AsyncResult<JsonArray>> resultHandler) {
 
-    System.out.println("Here...");
-
     dbClient.query("SELECT ca.id, ca.requested_at, u.email, u.first_name, u.last_name, u.date_of_birth, u.gender, u.image_id FROM cards as ca, users as u WHERE ca.is_activated = false AND ca.user_id_id = u.id ORDER BY ca.requested_at ASC LIMIT 10", res -> {
       if (res.succeeded()) {
 
@@ -434,12 +430,90 @@ public class CardHandler extends AbstractCustomHandler{
           jsonArray.add(cardRequest.toJson());
 
         }
-        System.out.println(jsonArray);
         resultHandler.handle(Future.succeededFuture(jsonArray));
       } else {
         resultHandler.handle(Future.failedFuture(""));
       }
     });
+
+  }
+
+  public void linkCardUser(RoutingContext context) {
+
+    attributesCheckJsonObject(context.getBodyAsJson(), requiredLinkAttributes, attributeCheckRes -> {
+      if (attributeCheckRes.succeeded()) {
+
+        processLinkCardUser(context);
+
+      } else {
+        // An attribute is missing:
+        ParameterNotFoundViolation error = new ParameterNotFoundViolation(attributeCheckRes.cause().getMessage());
+        raise422(context, error);
+      }
+    });
+  }
+
+  private void processLinkCardUser(RoutingContext context) {
+
+    JsonObject jsonBody = context.getBodyAsJson();
+    Card card = new Card(jsonBody.getString("card_code"), authProvider);
+    String email = jsonBody.getString("email");
+
+    // First get the card from the user
+    // Then update it
+    dbClient.getConnection(getConnectionRes -> {
+      if (getConnectionRes.succeeded()) {
+
+        PgConnection connection = getConnectionRes.result();
+
+        connection.preparedQuery("SELECT id FROM users WHERE email=$1", Tuple.of(email), userRes -> {
+
+          if (userRes.succeeded()) {
+
+            Row userRow = userRes.result().iterator().next();
+            UUID userId = userRow.getUUID("id");
+
+            connection.preparedQuery("UPDATE CARDS SET card_code=$1, pin=$2, pin_salt=$3 WHERE user_id_id=$4", Tuple.of(card.getCard_code(), card.getHashedPin(), card.getSalt(), userId), cardRes -> {
+              if (cardRes.succeeded()) {
+
+                // Generate json response:
+                JsonObject jsonObject = new JsonObject()
+                  .put("pin", card.getPin());
+
+                context.response()
+                  .setStatusCode(201)
+                  .putHeader("Cache-Control", "no-store, no-cache")
+                  .putHeader("X-Content-Type-Options", "nosniff")
+                  .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+                  .putHeader("X-Download-Options", "noopen")
+                  .putHeader("X-XSS-Protection", "1; mode=block")
+                  .putHeader("X-FRAME-OPTIONS", "DENY")
+                  .putHeader("content-type", "application/json; charset=utf-8")
+                  .end(Json.encodePrettily(jsonObject));
+
+              } else {
+                raise500(context);
+                connection.close();
+              }
+            });
+
+
+          } else {
+            System.out.println(userRes.cause().toString());
+            raise500(context);
+          }
+        });
+      } else {
+        // DB error
+        raise500(context);
+      }
+    });
+
+
+
+    context.response()
+      .setStatusCode(200)
+      .end();
 
   }
 

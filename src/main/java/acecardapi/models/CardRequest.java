@@ -9,13 +9,11 @@
 package acecardapi.models;
 
 
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.owasp.encoder.Encode;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.UUID;
 
 public class CardRequest {

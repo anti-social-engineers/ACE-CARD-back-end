@@ -107,7 +107,7 @@ public class MainVerticle extends AbstractVerticle {
     // ActivationHandler
     ActivationHandler activationHandler = new ActivationHandler(dbClient, config(), redisClient);
     // CardHandler
-    CardHandler cardHandler = new CardHandler(dbClient, config());
+    CardHandler cardHandler = new CardHandler(dbClient, config(), authProvider);
     // ClubHandler
     ClubHandler clubHandler = new ClubHandler(dbClient, config());
 
@@ -179,6 +179,8 @@ public class MainVerticle extends AbstractVerticle {
     //// Admin Endpoints ////
     router.route("/api/administration/*").handler(new AuthorizationHandler(new String[]{"sysop"}));
     router.get("/api/administration/openrequests").handler(cardHandler::requestRequestedCards);
+    router.post("/api/administration/link").handler(BodyHandler.create(false));
+    router.post("/api/administration/link").handler(cardHandler::linkCardUser);
 
 
     // HttpServer options
