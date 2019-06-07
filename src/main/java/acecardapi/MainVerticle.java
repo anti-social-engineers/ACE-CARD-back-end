@@ -12,6 +12,7 @@ import acecardapi.auth.IReactiveAuth;
 import acecardapi.auth.PBKDF2Strategy;
 import acecardapi.auth.ReactiveAuth;
 import acecardapi.handlers.*;
+import com.stripe.Stripe;
 import io.reactiverse.pgclient.PgClient;
 import io.reactiverse.pgclient.PgPool;
 import io.reactiverse.pgclient.PgPoolOptions;
@@ -50,6 +51,13 @@ public class MainVerticle extends AbstractVerticle {
       System.out.println("Sentry enabled!");
       String dsn = config().getString("sentry.dsn");
       Sentry.init(dsn);
+    }
+
+    /*
+    Setup Sentry for Debugging
+    */
+    if (config().getBoolean("stripe.enabled", false)) {
+      Stripe.apiKey = config().getString("stripe.apikey");
     }
 
     // Create the router
@@ -120,6 +128,8 @@ public class MainVerticle extends AbstractVerticle {
     CardHandler cardHandler = new CardHandler(dbClient, config(), authProvider);
     // ClubHandler
     ClubHandler clubHandler = new ClubHandler(dbClient, config());
+    // ClubHandler
+    PaymentHandler paymentHandler = new PaymentHandler(dbClient, config());
 
     /*
     Routes
@@ -191,6 +201,11 @@ public class MainVerticle extends AbstractVerticle {
     router.get("/api/administration/openrequests").handler(cardHandler::requestRequestedCards);
     router.post("/api/administration/link").handler(BodyHandler.create(false));
     router.post("/api/administration/link").handler(cardHandler::linkCardUser);
+
+
+    //// Payment Endpoints ////
+    router.post("/api/payments/charge").handler(BodyHandler.create(false));
+    router.post("/api/payments/charge").handler(paymentHandler::createStripeCharge);
 
 
     // HttpServer options

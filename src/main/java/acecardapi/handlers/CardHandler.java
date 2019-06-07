@@ -15,7 +15,6 @@ import acecardapi.models.Card;
 import acecardapi.models.CardRequest;
 import acecardapi.utils.DTuple;
 import io.reactiverse.pgclient.*;
-import io.sentry.Sentry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -448,6 +447,7 @@ public class CardHandler extends AbstractCustomHandler{
   }
 
   private void processLinkCardUser(RoutingContext context) {
+    //TODO: GEEN CHECK OF USER AL GEEN CARD HEEFT?
 
     JsonObject jsonBody = context.getBodyAsJson();
     Card card = new Card(jsonBody.getString("card_code"), authProvider);
@@ -485,6 +485,8 @@ public class CardHandler extends AbstractCustomHandler{
                   .putHeader("content-type", "application/json; charset=utf-8")
                   .end(Json.encodePrettily(jsonObject));
 
+                connection.close();
+
               } else {
                 raise500(context, cardRes.cause());
                 connection.close();
@@ -494,6 +496,7 @@ public class CardHandler extends AbstractCustomHandler{
 
           } else {
             raise500(context, userRes.cause());
+            connection.close();
           }
         });
       } else {
@@ -501,12 +504,6 @@ public class CardHandler extends AbstractCustomHandler{
         raise500(context, getConnectionRes.cause());
       }
     });
-
-
-
-    context.response()
-      .setStatusCode(200)
-      .end();
 
   }
 

@@ -54,7 +54,7 @@ public class Card {
   }
 
   public String getSalt() {
-    return getSalt();
+    return salt;
   }
 
   public Tuple toTuple() {
