@@ -23,17 +23,16 @@ public class PaymentHandler extends AbstractCustomHandler {
   }
 
   public void createStripeCharge(RoutingContext context) {
-
+    // todo: add check if fields are present
     try {
-      String token = context.getBodyAsJson().getString("token");
+      String source = context.getBodyAsJson().getString("source");
       String amount = context.getBodyAsJson().getString("amount");
-      String description = context.getBodyAsJson().getString("description");
 
-      Map<String, Object> params = new HashMap<>();
+      Map<String, Object> params = new HashMap<String, Object>();
       params.put("amount", amount);
       params.put("currency", "eur");
-      params.put("description", description);
-      params.put("source", token);
+      params.put("source", "source");
+
       Charge charge = Charge.create(params);
 
       context.response()
