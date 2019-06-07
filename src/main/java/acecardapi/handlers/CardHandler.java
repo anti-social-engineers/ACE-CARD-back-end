@@ -70,7 +70,12 @@ public class CardHandler extends AbstractCustomHandler{
 
   public void requestCard(RoutingContext context) {
 
-    MultiMap attributes = context.request().formAttributes();
+    try {
+      MultiMap attributes = context.request().formAttributes();
+    } catch (Exception e) {
+      System.out.println(e.toString());
+    }
+
 
     // Check if all required fields are present:
     attributesCheckMultiMap(attributes, requiredCardAttributes, attributeRes -> {
