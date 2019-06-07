@@ -535,6 +535,8 @@ public class CardHandler extends AbstractCustomHandler{
 
   private void raise422(RoutingContext context, ApiError error) {
 
+    System.out.println(error.errorJson());
+
     context.response()
       .setStatusCode(422)
       .putHeader("Cache-Control", "no-store, no-cache")
