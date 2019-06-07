@@ -142,6 +142,7 @@ public class MainVerticle extends AbstractVerticle {
     router.route("/static/*").handler(jwtAuthHandler);
     router.route("/api/acecard/*").handler(jwtAuthHandler);
     router.route("/api/club/*").handler(jwtAuthHandler);
+    router.route("/api/administration/*").handler(jwtAuthHandler);
 
     //// Handle register/login endpoints ////
     router.route("/api/register").handler(BodyHandler.create(false));
@@ -169,37 +170,16 @@ public class MainVerticle extends AbstractVerticle {
       .setBodyLimit(config().getInteger("http.max_image_mb", 1) * MB)
       .setDeleteUploadedFilesOnEnd(true));
     router.post("/api/acecard").handler(cardHandler::requestCard);
-//    router.post("/api/acecard").handler(ctx -> {
-//      MultiMap attributes = ctx.request().formAttributes();
-//      // do something with the form data
-//      Set<FileUpload> uploads = ctx.fileUploads();
-//      for (FileUpload file : uploads
-//           ) {
-//        System.out.println(file.contentType());
-//        System.out.println(file.size());
-//        System.out.println(file.name());
-//        System.out.println(file.fileName());
-//        System.out.println(file.uploadedFileName());
-//        System.out.println(file.contentType());
-//
-//        Path uploadedDir = Paths.get(file.uploadedFileName());
-//        Path destDir = Paths.get(config().getString("http.image_dir", "static/images/") + uploadedDir.getFileName());
-//
-//        try {
-//          Files.move(uploadedDir, destDir, StandardCopyOption.REPLACE_EXISTING);
-//        } catch (IOException e) {
-//          e.printStackTrace();
-//        }
-//      }
-//      System.out.println(uploads);
-//      System.out.println(attributes);
-//
-//      ctx.response().end();
-//    });
 
     //// Serving profile image  ////
     router.route("/static/images/*").handler(new ProfileImageAuthorizationHandler(dbClient));
     router.route("/static/images/*").handler(StaticHandler.create().setWebRoot("static/images"));
+
+
+    //// Admin Endpoints ////
+    router.route("/api/administration/*").handler(new AuthorizationHandler(new String[]{"sysop"}));
+    router.get("/api/administration/openrequests").handler(cardHandler::requestRequestedCards);
+
 
     // HttpServer options
 

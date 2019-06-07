@@ -11,6 +11,7 @@ package acecardapi.handlers;
 import acecardapi.apierrors.*;
 import acecardapi.models.Address;
 import acecardapi.models.Card;
+import acecardapi.models.CardRequest;
 import acecardapi.utils.DTuple;
 import io.reactiverse.pgclient.*;
 import io.vertx.core.AsyncResult;
@@ -18,6 +19,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.FileUpload;
 import io.vertx.ext.web.RoutingContext;
@@ -28,6 +30,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -374,6 +377,70 @@ public class CardHandler extends AbstractCustomHandler{
     } else {
       resultHandler.handle(Future.succeededFuture(file.contentType()));
     }
+  }
+
+  public void requestRequestedCards(RoutingContext context) {
+
+    gatherUserCardData(res -> {
+
+      if (res.succeeded()) {
+
+        JsonArray jsonArray = res.result();
+
+        context.response()
+          .setStatusCode(200)
+          .putHeader("Cache-Control", "no-store, no-cache")
+          .putHeader("X-Content-Type-Options", "nosniff")
+          .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+          .putHeader("X-Download-Options", "noopen")
+          .putHeader("X-XSS-Protection", "1; mode=block")
+          .putHeader("X-FRAME-OPTIONS", "DENY")
+          .putHeader("content-type", "application/json; charset=utf-8")
+          .end(Json.encodePrettily(jsonArray));
+
+      } else {
+        // DB issue
+        raise500(context);
+      }
+
+    });
+
+  }
+
+  private void gatherUserCardData(Handler<AsyncResult<JsonArray>> resultHandler) {
+
+    System.out.println("Here...");
+
+    dbClient.query("SELECT ca.id, ca.requested_at, u.email, u.first_name, u.last_name, u.date_of_birth, u.gender, u.image_id FROM cards as ca, users as u WHERE ca.is_activated = false AND ca.user_id_id = u.id ORDER BY ca.requested_at ASC LIMIT 10", res -> {
+      if (res.succeeded()) {
+
+        PgRowSet results = res.result();
+        JsonArray jsonArray = new JsonArray();
+
+        for (Row row: results) {
+
+          CardRequest cardRequest = new CardRequest(
+            row.getUUID("id"),
+            row.getOffsetDateTime("requested_at"),
+            row.getString("email"),
+            row.getString("first_name"),
+            row.getString("last_name"),
+            row.getLocalDate("date_of_birth"),
+            row.getString("gender"),
+            row.getUUID("image_id"),
+            config.getString("http.image_dir", "static/images/")
+          );
+
+          jsonArray.add(cardRequest.toJson());
+
+        }
+        System.out.println(jsonArray);
+        resultHandler.handle(Future.succeededFuture(jsonArray));
+      } else {
+        resultHandler.handle(Future.failedFuture(""));
+      }
+    });
+
   }
 
   private void raise500(RoutingContext context) {
