@@ -70,164 +70,158 @@ public class CardHandler extends AbstractCustomHandler{
 
   public void requestCard(RoutingContext context) {
 
-    try {
-      MultiMap attributes = context.request().formAttributes();
-    } catch (Exception e) {
-      System.out.println(e.toString());
-    }
-
-    context.response().setStatusCode(499).end();
+    MultiMap attributes = context.request().formAttributes();
 
     // Check if all required fields are present:
-//    attributesCheckMultiMap(attributes, requiredCardAttributes, attributeRes -> {
-//
-//      if (attributeRes.succeeded()) {
-//
-//        // Check of alle attributen de min/max lengte hebben:
-//        checkIfStringsValid(attributes, attributeLengthRes -> {
-//
-//          if (attributeLengthRes.succeeded()) {
-//
-//            Set<FileUpload> uploads = context.fileUploads();
-//
-//            // Check of de correcte file is geupload (correcte parameter):
-//            checkIfProfileImagePresentCardRequest(uploads, fileRes -> {
-//
-//              if (fileRes.succeeded()) {
-//
-//                FileUpload file = fileRes.result();
-//
-//                // Check of de content-type van de file wel png of jpg is (Als er hier door komen maakt het niet
-//                // veel uit, files in de upload directory worden niet uitgevoerd)
-//                checkFileContentType(file, fileContentRes -> {
-//
-//                  if (fileContentRes.succeeded()) {
-//
-//                    // Controleren of de
-//                    streetNumberIsInt(attributes.get("address_number"), intRes -> {
-//
-//                      if (intRes.succeeded()) {
-//
-//                        int address_number = intRes.result();
-//                        String street = attributes.get("address");
-//                        String annex = attributes.get("address_annex");
-//                        String city = attributes.get("city");
-//                        String postalcode = attributes.get("postalcode");
-//                        UUID userId = UUID.fromString(context.user().principal().getString("sub"));
-//
-//                        Address address = new Address(
-//                          street,
-//                          address_number,
-//                          annex,
-//                          city,
-//                          postalcode
-//                        );
-//
-//                        Card card = new Card(
-//                          userId
-//                        );
-//
-//                        dbClient.getConnection(getConnection -> {
-//                          if (getConnection.succeeded()) {
-//                            PgConnection connection = getConnection.result();
-//
-//                            connection.preparedQuery("SELECT id FROM cards WHERE EXISTS (SELECT * FROM users WHERE users.id = cards.user_id_id and users.id = $1)", Tuple.of(userId), hasCardRes -> {
-//
-//                              if (hasCardRes.succeeded()) {
-//
-//                                if (hasCardRes.result().rowCount() <= 0) {
-//
-//                                  connection.preparedQuery("INSERT INTO addresses (id, address, address_num, address_annex, city, postalcode, country) VALUES ($1, $2, $3, $4, $5, $6, $7)", address.toTupleWithId(), query_address -> {
-//                                    if (query_address.succeeded()) {
-//
-//                                      processRequestCard(context, connection, address.getId(), card, file);
-//
-//                                    } else {
-//
-//                                      if (query_address.cause() instanceof PgException) {
-//                                        String error_Code = ((PgException) query_address.cause()).getCode();
-//
-//                                        // PostgreSQL error 23505 (e.g. unique constraint failure)
-//                                        if (error_Code.equals("23505")) {
-//
-//                                          connection.preparedQuery("SELECT id FROM addresses WHERE address=$1 AND address_num=$2 AND address_annex=$3 AND city=$4 AND postalcode=$5 AND country=$6", address.toTupleNoId(), query_get_address -> {
-//
-//                                            if (query_get_address.succeeded()) {
-//
-//                                              PgRowSet result = query_get_address.result();
-//
-//                                              if (result.rowCount() != 1) {
-//                                                connection.close();
-//                                                raise500(context);
-//                                              } else {
-//                                                Row row = result.iterator().next();
-//
-//                                                // Go to the next step: The user
-//                                                processRequestCard(context, connection, row.getUUID("id"), card, file);
-//                                              }
-//                                            } else {
-//                                              System.out.println(query_address.cause().toString());
-//                                              raise500(context);
-//                                              connection.close();
-//                                            }
-//                                          });
-//                                        } else {
-//                                          System.out.println(query_address.cause().toString());
-//                                          raise500(context);
-//                                          connection.close();
-//                                        }
-//                                      }
-//                                    }
-//                                  });
-//                                } else {
-//                                  // Already has an ace card
-//                                  context.response()
-//                                    .setStatusCode(409)
-//                                    .putHeader("Cache-Control", "no-store, no-cache")
-//                                    .putHeader("X-Content-Type-Options", "nosniff")
-//                                    .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
-//                                    .putHeader("X-Download-Options", "noopen")
-//                                    .putHeader("X-XSS-Protection", "1; mode=block")
-//                                    .putHeader("X-FRAME-OPTIONS", "DENY")
-//                                    .putHeader("content-type", "application/json; charset=utf-8")
-//                                    .end();
-//                                  connection.close();
-//                                }
-//                              } else {
-//                                System.out.println(hasCardRes.cause().toString());
-//                                raise500(context);
-//                                connection.close();
-//                              }
-//                            });
-//                          } else {
-//                            raise500(context);
-//                          }
-//                        });
-//                      } else {
-//                        InputFormatViolation error = new InputFormatViolation("address_number");
-//                        raise422(context, error);
-//                      }
-//                    });
-//                  } else {
-//                    FileFormatViolation error = new FileFormatViolation("profile_image", fileContentRes.cause().getMessage());
-//                    raise422(context, error);
-//                  }
-//                });
-//              } else {
-//                ParameterNotFoundViolation error = new ParameterNotFoundViolation("profile_image");
-//                raise422(context, error);
-//              }
-//            });
-//          } else {
-//            InputLengthFormatViolation error = new InputLengthFormatViolation(attributeLengthRes.cause().getMessage());
-//            raise422(context, error);
-//          }
-//        });
-//      } else {
-//        ParameterNotFoundViolation error = new ParameterNotFoundViolation(attributeRes.cause().getMessage());
-//        raise422(context, error);
-//      }
-//    });
+    attributesCheckMultiMap(attributes, requiredCardAttributes, attributeRes -> {
+
+      if (attributeRes.succeeded()) {
+
+        // Check of alle attributen de min/max lengte hebben:
+        checkIfStringsValid(attributes, attributeLengthRes -> {
+
+          if (attributeLengthRes.succeeded()) {
+
+            Set<FileUpload> uploads = context.fileUploads();
+
+            // Check of de correcte file is geupload (correcte parameter):
+            checkIfProfileImagePresentCardRequest(uploads, fileRes -> {
+
+              if (fileRes.succeeded()) {
+
+                FileUpload file = fileRes.result();
+
+                // Check of de content-type van de file wel png of jpg is (Als er hier door komen maakt het niet
+                // veel uit, files in de upload directory worden niet uitgevoerd)
+                checkFileContentType(file, fileContentRes -> {
+
+                  if (fileContentRes.succeeded()) {
+
+                    // Controleren of de
+                    streetNumberIsInt(attributes.get("address_number"), intRes -> {
+
+                      if (intRes.succeeded()) {
+
+                        int address_number = intRes.result();
+                        String street = attributes.get("address");
+                        String annex = attributes.get("address_annex");
+                        String city = attributes.get("city");
+                        String postalcode = attributes.get("postalcode");
+                        UUID userId = UUID.fromString(context.user().principal().getString("sub"));
+
+                        Address address = new Address(
+                          street,
+                          address_number,
+                          annex,
+                          city,
+                          postalcode
+                        );
+
+                        Card card = new Card(
+                          userId
+                        );
+
+                        dbClient.getConnection(getConnection -> {
+                          if (getConnection.succeeded()) {
+                            PgConnection connection = getConnection.result();
+
+                            connection.preparedQuery("SELECT id FROM cards WHERE EXISTS (SELECT * FROM users WHERE users.id = cards.user_id_id and users.id = $1)", Tuple.of(userId), hasCardRes -> {
+
+                              if (hasCardRes.succeeded()) {
+
+                                if (hasCardRes.result().rowCount() <= 0) {
+
+                                  connection.preparedQuery("INSERT INTO addresses (id, address, address_num, address_annex, city, postalcode, country) VALUES ($1, $2, $3, $4, $5, $6, $7)", address.toTupleWithId(), query_address -> {
+                                    if (query_address.succeeded()) {
+
+                                      processRequestCard(context, connection, address.getId(), card, file);
+
+                                    } else {
+
+                                      if (query_address.cause() instanceof PgException) {
+                                        String error_Code = ((PgException) query_address.cause()).getCode();
+
+                                        // PostgreSQL error 23505 (e.g. unique constraint failure)
+                                        if (error_Code.equals("23505")) {
+
+                                          connection.preparedQuery("SELECT id FROM addresses WHERE address=$1 AND address_num=$2 AND address_annex=$3 AND city=$4 AND postalcode=$5 AND country=$6", address.toTupleNoId(), query_get_address -> {
+
+                                            if (query_get_address.succeeded()) {
+
+                                              PgRowSet result = query_get_address.result();
+
+                                              if (result.rowCount() != 1) {
+                                                connection.close();
+                                                raise500(context);
+                                              } else {
+                                                Row row = result.iterator().next();
+
+                                                // Go to the next step: The user
+                                                processRequestCard(context, connection, row.getUUID("id"), card, file);
+                                              }
+                                            } else {
+                                              System.out.println(query_address.cause().toString());
+                                              raise500(context);
+                                              connection.close();
+                                            }
+                                          });
+                                        } else {
+                                          System.out.println(query_address.cause().toString());
+                                          raise500(context);
+                                          connection.close();
+                                        }
+                                      }
+                                    }
+                                  });
+                                } else {
+                                  // Already has an ace card
+                                  context.response()
+                                    .setStatusCode(409)
+                                    .putHeader("Cache-Control", "no-store, no-cache")
+                                    .putHeader("X-Content-Type-Options", "nosniff")
+                                    .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+                                    .putHeader("X-Download-Options", "noopen")
+                                    .putHeader("X-XSS-Protection", "1; mode=block")
+                                    .putHeader("X-FRAME-OPTIONS", "DENY")
+                                    .putHeader("content-type", "application/json; charset=utf-8")
+                                    .end();
+                                  connection.close();
+                                }
+                              } else {
+                                System.out.println(hasCardRes.cause().toString());
+                                raise500(context);
+                                connection.close();
+                              }
+                            });
+                          } else {
+                            raise500(context);
+                          }
+                        });
+                      } else {
+                        InputFormatViolation error = new InputFormatViolation("address_number");
+                        raise422(context, error);
+                      }
+                    });
+                  } else {
+                    FileFormatViolation error = new FileFormatViolation("profile_image", fileContentRes.cause().getMessage());
+                    raise422(context, error);
+                  }
+                });
+              } else {
+                ParameterNotFoundViolation error = new ParameterNotFoundViolation("profile_image");
+                raise422(context, error);
+              }
+            });
+          } else {
+            InputLengthFormatViolation error = new InputLengthFormatViolation(attributeLengthRes.cause().getMessage());
+            raise422(context, error);
+          }
+        });
+      } else {
+        ParameterNotFoundViolation error = new ParameterNotFoundViolation(attributeRes.cause().getMessage());
+        raise422(context, error);
+      }
+    });
   }
 
   private void processRequestCard(RoutingContext context, PgConnection connection, UUID addressId, Card card,
