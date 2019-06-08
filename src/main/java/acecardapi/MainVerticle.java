@@ -49,7 +49,7 @@ public class MainVerticle extends AbstractVerticle {
      */
     if (config().getBoolean("debug.enabled", false)) {
       System.out.println("Sentry enabled!");
-      String dsn = config().getString("sentry.dsn");
+      String dsn = config().getString("debug.dsn");
       Sentry.init(dsn);
     }
 

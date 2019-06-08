@@ -51,18 +51,18 @@ public class LoginHandler extends AbstractCustomHandler{
         InputFormatViolation error = new InputFormatViolation("email_address");
         context.response()
           .setStatusCode(422)
+          .putHeader("Cache-Control", "no-store, no-cache")
+          .putHeader("X-Content-Type-Options", "nosniff")
+          .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+          .putHeader("X-Download-Options", "noopen")
+          .putHeader("X-XSS-Protection", "1; mode=block")
+          .putHeader("X-FRAME-OPTIONS", "DENY")
           .putHeader("content-type", "application/json; charset=utf-8")
           .end(Json.encodePrettily(error.errorJson()));
 
       }
 
-      context.response()
-        .setStatusCode(500)
-        .putHeader("content-type", "application/json; charset=utf-8")
-        .end("Something went wrong...");
-
-      if (config.getBoolean("debug.enabled", false))
-        Sentry.capture(e);
+      raise500(context, e);
 
       return;
 
@@ -71,7 +71,6 @@ public class LoginHandler extends AbstractCustomHandler{
     // Verify if email is activated
 
     dbAuth.authenticate(users.toJsonObjectLogin(), userRes -> {
-      // Important note: This is reactive programming, e.g. async. Use Futures etc. to handle that.
 
       if(userRes.succeeded()) {
 
@@ -79,76 +78,170 @@ public class LoginHandler extends AbstractCustomHandler{
 
         UUID id = UUID.fromString(logged_user.principal().getString("id"));
 
-        // Check if the user has a verified email:
-        dbClient.preparedQuery("SELECT is_email_verified, role, image_id FROM users WHERE id=$1", Tuple.of(id), res -> {
-          if (res.succeeded()) {
-            PgRowSet result = res.result();
 
-            if (result.rowCount() == 0 || result.rowCount() >= 2) {
-              // No user or more than 1 user was found with this id, should be impossible to end up here since we
-              // verify the JWT signature, but we need to handle it just in case.
+        dbClient.getConnection(getConnectionRes -> {
 
-              context.response()
-                .putHeader("content-type", "application/json; charset=utf-8")
-                .setStatusCode(500)
-                .end();
+          if (getConnectionRes.succeeded()) {
 
-            } else {
+            PgConnection connection = getConnectionRes.result();
 
-              // Check if the user has activated their email:
-              Row row = result.iterator().next();
+            connection.preparedQuery("SELECT is_email_verified, role, image_id FROM users WHERE id=$1", Tuple.of(id), res -> {
+              if (res.succeeded()) {
+                PgRowSet result = res.result();
 
-              if (!row.getBoolean("is_email_verified")) {
-                // TODO: Handle sending new activation email or something....
+                if (result.rowCount() == 0 || result.rowCount() >= 2) {
+                  // No user or more than 1 user was found with this id, should be impossible to end up here since we
+                  // verify the JWT signature, but we need to handle it just in case.
 
-                EmailNotVerifiedViolation error = new EmailNotVerifiedViolation("email_not_activated");
-                context.response()
-                  .putHeader("content-type", "application/json; charset=utf-8")
-                  .setStatusCode(403)
-                  .end(Json.encodePrettily(error.errorJson()));
+                  context.response()
+                    .putHeader("Cache-Control", "no-store, no-cache")
+                    .putHeader("X-Content-Type-Options", "nosniff")
+                    .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+                    .putHeader("X-Download-Options", "noopen")
+                    .putHeader("X-XSS-Protection", "1; mode=block")
+                    .putHeader("X-FRAME-OPTIONS", "DENY")
+                    .putHeader("content-type", "application/json; charset=utf-8")
+                    .setStatusCode(500)
+                    .end();
 
+                  connection.close();
+
+                } else {
+
+                  // Check if the user has activated their email:
+                  Row row = result.iterator().next();
+
+                  if (!row.getBoolean("is_email_verified")) {
+                    // TODO: Handle sending new activation email or something....
+
+                    EmailNotVerifiedViolation error = new EmailNotVerifiedViolation("email_not_activated");
+                    context.response()
+                      .putHeader("Cache-Control", "no-store, no-cache")
+                      .putHeader("X-Content-Type-Options", "nosniff")
+                      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+                      .putHeader("X-Download-Options", "noopen")
+                      .putHeader("X-XSS-Protection", "1; mode=block")
+                      .putHeader("X-FRAME-OPTIONS", "DENY")
+                      .putHeader("content-type", "application/json; charset=utf-8")
+                      .setStatusCode(403)
+                      .end(Json.encodePrettily(error.errorJson()));
+
+                    connection.close();
+
+                  } else {
+
+                    String profile_image;
+                    var db_profile_image = row.getUUID("image_id");
+                    if (db_profile_image != null) {
+                      profile_image = db_profile_image.toString();
+                    } else
+                      profile_image = "";
+
+                    if (row.getString("role").equals("club_employee")) {
+
+                      connection.preparedQuery("SELECT * FROM clubs WHERE owner_id=$1", Tuple.of(id), clubRes -> {
+
+                        if (clubRes.succeeded()) {
+
+                          PgRowSet clubResults = clubRes.result();
+
+                          if (clubResults.rowCount() <= 0) {
+                            raise500(context, new Exception("User has club_employee role, but no clubs are" +
+                              " associated with this user."));
+                          } else {
+
+                            JsonArray clubs = new JsonArray();
+                            for (Row clubRow: clubResults) {
+
+                              clubs.add(clubRow.getUUID("id").toString());
+
+                            }
+
+                            String token = generateJwt(id.toString(), row.getString("role"), profile_image, clubs);
+
+                            context.response()
+                              .setStatusCode(200)
+                              .putHeader("Cache-Control", "no-store, no-cache")
+                              .putHeader("X-Content-Type-Options", "nosniff")
+                              .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+                              .putHeader("X-Download-Options", "noopen")
+                              .putHeader("X-XSS-Protection", "1; mode=block")
+                              .putHeader("X-FRAME-OPTIONS", "DENY")
+                              .putHeader("content-type", "application/json; charset=utf-8")
+                              .end(Json.encodePrettily(new JwtToken(token)));
+
+                          }
+
+                        } else {
+                          raise500(context, clubRes.cause());
+                        }
+
+                      });
+
+                    } else {
+                      String token = generateJwt(id.toString(), row.getString("role"), profile_image);
+
+                      context.response()
+                        .setStatusCode(200)
+                        .putHeader("Cache-Control", "no-store, no-cache")
+                        .putHeader("X-Content-Type-Options", "nosniff")
+                        .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+                        .putHeader("X-Download-Options", "noopen")
+                        .putHeader("X-XSS-Protection", "1; mode=block")
+                        .putHeader("X-FRAME-OPTIONS", "DENY")
+                        .putHeader("content-type", "application/json; charset=utf-8")
+                        .end(Json.encodePrettily(new JwtToken(token)));
+
+                      connection.close();
+                    }
+                  }
+                }
               } else {
+                // Return a 500 error (Something went wrong connecting with the db/executing the query)
+                raise500(context, res.cause());
 
-                String profile_image;
-                var db_profile_image = row.getUUID("image_id");
-                if (db_profile_image != null) {
-                  profile_image = db_profile_image.toString();
-                } else
-                  profile_image = "";
-
-                String token = jwtProvider.generateToken(new JsonObject()
-                    .put("sub", logged_user.principal().getString("id"))
-                    .put("permissions", new JsonArray().add(row.getString("role")))
-                    .put("profile_image", profile_image),
-                  new JWTOptions().setExpiresInSeconds(config.getInteger("jwt.exptime", 32400)));
-
-                context.response()
-                  .setStatusCode(200)
-                  .putHeader("content-type", "application/json; charset=utf-8")
-                  .end(Json.encodePrettily(new JwtToken(token)));
+                connection.close();
               }
-            }
+            });
           } else {
-            // Return a 500 error (Something went wrong connecting with the db/executing the query)
-            context.response()
-              .putHeader("content-type", "application/json; charset=utf-8")
-              .setStatusCode(500)
-              .end();
-
-            if (config.getBoolean("debug.enabled", false))
-              Sentry.capture(res.cause());
-
+            raise500(context, getConnectionRes.cause());
           }
         });
+        // Check if the user has a verified email:
+
       }
 
       else {
         context.response()
           .putHeader("content-type", "application/json; charset=utf-8")
           .setStatusCode(401)
-          .end("Unauthroized");
+          .putHeader("Cache-Control", "no-store, no-cache")
+          .putHeader("X-Content-Type-Options", "nosniff")
+          .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+          .putHeader("X-Download-Options", "noopen")
+          .putHeader("X-XSS-Protection", "1; mode=block")
+          .putHeader("X-FRAME-OPTIONS", "DENY")
+          .putHeader("content-type", "application/json; charset=utf-8")
+          .end();
       }
     });
+  }
+
+  private String generateJwt(String userId, String role, String profileImage) {
+    return jwtProvider.generateToken(new JsonObject()
+        .put("sub", userId)
+        .put("permissions", new JsonArray().add(role))
+        .put("profile_image", profileImage),
+      new JWTOptions().setExpiresInSeconds(config.getInteger("jwt.exptime", 32400)));
+  }
+
+  private String generateJwt(String userId, String role, String profileImage, JsonArray clubs) {
+    return jwtProvider.generateToken(new JsonObject()
+        .put("sub", userId)
+        .put("permissions", new JsonArray().add(role))
+        .put("profile_image", profileImage)
+        .put("clubs", clubs),
+      new JWTOptions().setExpiresInSeconds(config.getInteger("jwt.exptime", 32400)));
   }
 
 }
