@@ -170,10 +170,14 @@ public class LoginHandler extends AbstractCustomHandler{
                               .putHeader("content-type", "application/json; charset=utf-8")
                               .end(Json.encodePrettily(new JwtToken(token)));
 
+                            connection.close();
+
                           }
 
                         } else {
                           raise500(context, clubRes.cause());
+
+                          connection.close();
                         }
 
                       });
