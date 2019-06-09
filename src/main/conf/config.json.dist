@@ -1,5 +1,6 @@
 {
   "http.port" : ,
+  "http.ssl" : ,
   "http.image_dir" : "",
   "http.temp_dir" : "",
   "http.max_image_mb" : ,
@@ -16,5 +17,11 @@
   "mail.port" : ,
   "mail.user" : "",
   "mail.pass" : "",
-  "card.encryptionkey" : ""
+  "card.encryptionkey" : "",
+  "debug.enabled" : ,
+  "debug.dsn" : "",
+  "stripe.enabled" : ,
+  "stripe.apikey" : "",
+  "card.max_tries" :,
+  "card.failed_attempts_expiration" :
 }

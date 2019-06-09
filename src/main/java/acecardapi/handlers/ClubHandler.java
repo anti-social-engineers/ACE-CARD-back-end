@@ -8,13 +8,19 @@
 
 package acecardapi.handlers;
 
-import acecardapi.apierrors.InputFormatViolation;
-import acecardapi.apierrors.ParameterNotFoundViolation;
+import acecardapi.apierrors.*;
+import acecardapi.auth.ReactiveAuth;
 import acecardapi.models.ClubVisitor;
+import acecardapi.models.Payment;
 import io.reactiverse.pgclient.*;
+import io.reactiverse.pgclient.data.Numeric;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.redis.RedisClient;
 
 import java.util.ArrayList;
 import java.util.UUID;
@@ -25,10 +31,15 @@ import static acecardapi.utils.RequestUtilities.attributesCheckJsonObject;
 
 public class ClubHandler extends AbstractCustomHandler{
 
+  private RedisClient redisClient;
+  private ReactiveAuth authProvider;
+
   private String[] requiredAttributesProcessCardPayment = new String[]{"club_id", "card_code", "card_pin", "amount"};
 
-  public ClubHandler(PgPool dbClient, JsonObject config) {
+  public ClubHandler(PgPool dbClient, JsonObject config, RedisClient redisClient, ReactiveAuth authProvider) {
     super(dbClient, config);
+    this.redisClient = redisClient;
+    this.authProvider = authProvider;
   }
 
   public void scanCard(RoutingContext context) {
@@ -161,7 +172,7 @@ public class ClubHandler extends AbstractCustomHandler{
     }
   }
 
-  public void processCardPayment(RoutingContext context) {
+  public void cardPayment(RoutingContext context) {
 
     // Check of club id == jwt club id - check
     // Check of alle params aanwezig zijn
@@ -185,41 +196,27 @@ public class ClubHandler extends AbstractCustomHandler{
 
             String decryptedCardCode = decrypt(cardCode, config.getString("card.encryptionkey", ""));
 
-            dbClient.getConnection(getConnectionRes -> {
+            String redisKey = "pin_attempt:" + decryptedCardCode;
 
-              if (getConnectionRes.succeeded()) {
-                PgConnection connection = getConnectionRes.result();
+            redisClient.get(redisKey, redisKeyRes -> {
+              if (redisKeyRes.succeeded()) {
 
-                // Retrieve card data
-                connection.preparedQuery("SELECT credits, pin, pin_salt, is_blocked WHERE card_code = $1", Tuple.of(decryptedCardCode), cardRes -> {
 
-                  if (cardRes.succeeded()) {
+                if (redisKeyRes.result() == null || Integer.parseInt(redisKeyRes.result()) < config.getInteger("card.max_tries", 3)) {
 
-                    PgRowSet result = cardRes.result();
+                  processCardPayment(context, jsonBody, decryptedCardCode, redisKeyRes.result(), redisKey);
 
-                    if (result.rowCount() <= 0 || result.rowCount() >= 2) {
-                      // No card found
-                      raise404(context);
-                      connection.close();
-                    } else {
+                } else {
 
-                      if
+                  raise429(context, new TooManyFailedAttemptsViolation());
 
-                    }
+                }
 
-                  } else {
-
-                    //TODO: TEST OF JE HIER NIET KOMT ALS CARDCODE NIET GEVONDEN WORDT
-                    raise500(context, cardRes.cause());
-                    connection.close();
-                  }
-
-                });
               } else {
-                raise500(context, getConnectionRes.cause());
+                raise500(context, redisKeyRes.cause());
               }
-
             });
+
           } else {
             InputFormatViolation error = new InputFormatViolation("amount");
             raise422(context, error);
@@ -234,4 +231,134 @@ public class ClubHandler extends AbstractCustomHandler{
 
     });
   }
+
+  private void processCardPayment(RoutingContext context, JsonObject requestBody, String decryptedCardCode, String attempts, String attemptsCode) {
+
+    dbClient.getConnection(getConnectionRes -> {
+
+      if (getConnectionRes.succeeded()) {
+        PgConnection connection = getConnectionRes.result();
+
+        // Retrieve card data
+        connection.preparedQuery("SELECT id, credits, pin, pin_salt, is_blocked FROM cards WHERE card_code=$1", Tuple.of(decryptedCardCode), cardRes -> {
+
+          if (cardRes.succeeded()) {
+
+            PgRowSet result = cardRes.result();
+
+            if (result.rowCount() <= 0 || result.rowCount() >= 2) {
+              // No card found
+              raise404(context);
+              connection.close();
+
+            } else {
+
+              Row row = result.iterator().next();
+
+              if (row.getBoolean("is_blocked")) {
+                BlockedViolation error = new BlockedViolation("Card is suspended.");
+                raise403(context, error);
+                connection.close();
+              } else if (!checkPIN(requestBody.getString("card_pin"), row.getString("pin_salt"), row.getString("pin"))) {
+                AuthorisationViolation error = new AuthorisationViolation("PIN is invalid.");
+                raise401(context, error);
+
+                addPINAttempt(attempts, attemptsCode);
+
+              } else if (requestBody.getDouble("amount") > row.getNumeric("credits").doubleValue()){
+                CreditsViolaton error = new CreditsViolaton("Not enough credits.");
+                raise400(context, error);
+                connection.close();
+              } else {
+
+                Payment payment = new Payment(requestBody.getDouble("amount"), row.getUUID("id"), UUID.fromString(requestBody.getString("club_id")));
+
+                processCardPaymentTransaction(connection, row.getUUID("id"), row.getNumeric("credits").doubleValue() - requestBody.getDouble("amount"), payment, transactionRes -> {
+
+                  if (transactionRes.succeeded()) {
+
+                    context.response()
+                      .setStatusCode(201)
+                      .putHeader("Cache-Control", "no-store, no-cache")
+                      .putHeader("X-Content-Type-Options", "nosniff")
+                      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+                      .putHeader("X-Download-Options", "noopen")
+                      .putHeader("X-XSS-Protection", "1; mode=block")
+                      .putHeader("X-FRAME-OPTIONS", "DENY")
+                      .putHeader("content-type", "application/json; charset=utf-8")
+
+                      .end(Json.encodePrettily(payment.toJsonObject()));
+
+                    connection.close();
+
+                  } else {
+                    raise500(context, transactionRes.cause());
+                    connection.close();
+                  }
+
+                });
+              }
+
+            }
+
+          } else {
+            raise500(context, cardRes.cause());
+            connection.close();
+          }
+
+        });
+      } else {
+        raise500(context, getConnectionRes.cause());
+      }
+
+    });
+  }
+
+  private boolean checkPIN(String inputPIN, String salt, String hashedPin) {
+    String hashedInputPIN = authProvider.computeHash(inputPIN, salt);
+    return hashedPin.equals(hashedInputPIN);
+  }
+
+  private void processCardPaymentTransaction(PgConnection connection, UUID cardId, Double newCreditLevel, Payment payment, Handler<AsyncResult<Double>> resultHandler) {
+
+    PgTransaction transaction = connection.begin();
+
+    transaction.preparedQuery("UPDATE cards SET credits=$1 WHERE id=$2", Tuple.of(Numeric.create(newCreditLevel), cardId), cardRes -> {
+      if (cardRes.succeeded()) {
+        transaction.preparedQuery("INSERT INTO payments (id, amount, paid_at, card_id_id, club_id) VALUES ($1, $2, $3, $4, $5)", payment.toTuple(), paymentRes -> {
+          if (paymentRes.succeeded()) {
+            transaction.commit(transactionRes -> {
+              if (transactionRes.succeeded()) {
+                resultHandler.handle(Future.succeededFuture(newCreditLevel));
+              } else {
+                resultHandler.handle(Future.failedFuture(transactionRes.cause()));
+              }
+            });
+          } else {
+            resultHandler.handle(Future.failedFuture(paymentRes.cause()));
+          }
+        });
+      } else {
+        resultHandler.handle(Future.failedFuture(cardRes.cause()));
+      }
+    });
+  }
+
+  private void addPINAttempt(String attempts, String attemptsCode) {
+
+    int attemptsNumber;
+
+    if (attempts != null)
+     attemptsNumber = Integer.valueOf(attempts) + 1;
+    else
+      attemptsNumber = 1;
+
+    redisClient.set(attemptsCode, Integer.toString(attemptsNumber), redisSetRes -> {
+      if (redisSetRes.succeeded()) {
+        redisClient.expire(attemptsCode, config.getLong("card.failed_attempts_expiration", 3600L), expireRedisRes -> {
+        });
+      }
+    });
+  }
+
 }

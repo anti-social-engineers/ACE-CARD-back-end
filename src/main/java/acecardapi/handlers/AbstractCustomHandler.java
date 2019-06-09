@@ -25,10 +25,52 @@ abstract class AbstractCustomHandler {
     this.config = config;
   }
 
+  void raise400(RoutingContext context, ApiError error) {
+
+    context.response()
+      .setStatusCode(400)
+      .putHeader("Cache-Control", "no-store, no-cache")
+      .putHeader("X-Content-Type-Options", "nosniff")
+      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+      .putHeader("X-Download-Options", "noopen")
+      .putHeader("X-XSS-Protection", "1; mode=block")
+      .putHeader("X-FRAME-OPTIONS", "DENY")
+      .putHeader("content-type", "application/json; charset=utf-8")
+      .end(Json.encodePrettily(error.errorJson()));
+  }
+
+  void raise401(RoutingContext context, ApiError error) {
+
+    context.response()
+      .setStatusCode(401)
+      .putHeader("Cache-Control", "no-store, no-cache")
+      .putHeader("X-Content-Type-Options", "nosniff")
+      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+      .putHeader("X-Download-Options", "noopen")
+      .putHeader("X-XSS-Protection", "1; mode=block")
+      .putHeader("X-FRAME-OPTIONS", "DENY")
+      .putHeader("content-type", "application/json; charset=utf-8")
+      .end(Json.encodePrettily(error.errorJson()));
+  }
+
+  void raise403(RoutingContext context, ApiError error) {
+
+    context.response()
+      .setStatusCode(403)
+      .putHeader("Cache-Control", "no-store, no-cache")
+      .putHeader("X-Content-Type-Options", "nosniff")
+      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+      .putHeader("X-Download-Options", "noopen")
+      .putHeader("X-XSS-Protection", "1; mode=block")
+      .putHeader("X-FRAME-OPTIONS", "DENY")
+      .putHeader("content-type", "application/json; charset=utf-8")
+      .end(Json.encodePrettily(error.errorJson()));
+  }
+
   void raise404(RoutingContext context) {
 
     context.response()
-      .setStatusCode(422)
+      .setStatusCode(404)
       .putHeader("Cache-Control", "no-store, no-cache")
       .putHeader("X-Content-Type-Options", "nosniff")
       .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
@@ -43,6 +85,20 @@ abstract class AbstractCustomHandler {
 
     context.response()
       .setStatusCode(422)
+      .putHeader("Cache-Control", "no-store, no-cache")
+      .putHeader("X-Content-Type-Options", "nosniff")
+      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+      .putHeader("X-Download-Options", "noopen")
+      .putHeader("X-XSS-Protection", "1; mode=block")
+      .putHeader("X-FRAME-OPTIONS", "DENY")
+      .putHeader("content-type", "application/json; charset=utf-8")
+      .end(Json.encodePrettily(error.errorJson()));
+  }
+
+  void raise429(RoutingContext context, ApiError error) {
+
+    context.response()
+      .setStatusCode(429)
       .putHeader("Cache-Control", "no-store, no-cache")
       .putHeader("X-Content-Type-Options", "nosniff")
       .putHeader("Strict-Transport-Security", "max-age=" + 15768000)

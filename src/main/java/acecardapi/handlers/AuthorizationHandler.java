@@ -8,7 +8,9 @@
 
 package acecardapi.handlers;
 
+import acecardapi.apierrors.PermissionsViolation;
 import io.vertx.core.Handler;
+import io.vertx.core.json.Json;
 import io.vertx.ext.web.RoutingContext;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,10 +44,18 @@ public class AuthorizationHandler implements Handler<RoutingContext> {
     if(!isAuthorized.get()) {
       // Unauthorized request
 
+      PermissionsViolation error = new PermissionsViolation("You do not have enough permissions to access this endpoint.");
+
       context.response()
         .putHeader("content-type", "application/json; charset=utf-8")
-        .setStatusCode(403)
-        .end();
+        .putHeader("Cache-Control", "no-store, no-cache")
+        .putHeader("X-Content-Type-Options", "nosniff")
+        .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+        .putHeader("X-Download-Options", "noopen")
+        .putHeader("X-XSS-Protection", "1; mode=block")
+        .putHeader("X-FRAME-OPTIONS", "DENY")
+        .putHeader("content-type", "application/json; charset=utf-8")
+        .end(Json.encodePrettily(error.errorJson()));
 
     } else {
       // Authorized request

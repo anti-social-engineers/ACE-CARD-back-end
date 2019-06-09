@@ -101,7 +101,6 @@ public class MainVerticle extends AbstractVerticle {
     RedisClient redisClient = RedisClient.create(vertx,
       new RedisOptions().setHost(config().getString("redis.host", "127.0.0.1")));
 
-
     /*
     Setup JWT
      */
@@ -127,7 +126,7 @@ public class MainVerticle extends AbstractVerticle {
     // CardHandler
     CardHandler cardHandler = new CardHandler(dbClient, config(), authProvider);
     // ClubHandler
-    ClubHandler clubHandler = new ClubHandler(dbClient, config());
+    ClubHandler clubHandler = new ClubHandler(dbClient, config(), redisClient, authProvider);
     // ClubHandler
     PaymentHandler paymentHandler = new PaymentHandler(dbClient, config());
 
@@ -187,7 +186,7 @@ public class MainVerticle extends AbstractVerticle {
     router.route("/api/club/payment").handler(BodyHandler.create(false));
     router.route("/api/club/payment").handler(new AuthorizationHandler(new String[]{"club_employee"}));
     router.route("/api/club/payment").handler(new ClubAccessHandler());
-    router.post("/api/club/payment").handler(clubHandler::processCardPayment);
+    router.post("/api/club/payment").handler(clubHandler::cardPayment);
 
     //// Ace Card ////
     router.post("/api/acecard").handler(BodyHandler.create()

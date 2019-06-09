@@ -31,6 +31,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -41,7 +42,7 @@ import static java.util.Map.entry;
 
 public class CardHandler extends AbstractCustomHandler{
 
-  ReactiveAuth authProvider;
+  private ReactiveAuth authProvider;
 
   private String[] requiredCardAttributes = new String[]{"address", "address_number", "address_annex", "city", "postalcode",
     "first_name", "last_name", "gender", "dob"};
@@ -467,7 +468,7 @@ public class CardHandler extends AbstractCustomHandler{
             Row userRow = userRes.result().iterator().next();
             UUID userId = userRow.getUUID("id");
 
-            connection.preparedQuery("UPDATE CARDS SET card_code=$1, pin=$2, pin_salt=$3 WHERE user_id_id=$4", Tuple.of(card.getCard_code(), card.getHashedPin(), card.getSalt(), userId), cardRes -> {
+            connection.preparedQuery("UPDATE CARDS SET card_code=$1, pin=$2, pin_salt=$3, is_activated=$4, activated_at=$5 WHERE user_id_id=$6", Tuple.of(card.getCard_code(), card.getHashedPin(), card.getSalt(), true, OffsetDateTime.now(), userId), cardRes -> {
               if (cardRes.succeeded()) {
 
                 // Generate json response:
