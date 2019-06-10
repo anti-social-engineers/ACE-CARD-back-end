@@ -11,7 +11,6 @@ package acecardapi.handlers;
 import acecardapi.models.Account;
 import acecardapi.models.Users;
 import io.reactiverse.pgclient.*;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
@@ -41,8 +40,18 @@ public class UserHandler extends AbstractCustomHandler{
 
               // User exists, but does not yet have an ace card
 
-              getUserDataNoCard(context);
-              connection.close();
+              connection.preparedQuery("SELECT email FROM users WHERE id=$1", Tuple.of(userId), res2 -> {
+
+                if (res2.succeeded()) {
+                  Row row2 = res2.result().iterator().next();
+                  getUserDataNoCard(context, row2.getString("email"));
+                  connection.close();
+                } else {
+                  raise500(context, res2.cause());
+                  connection.close();
+                }
+              });
+
             } else {
 
               // User has an ace card (or requested one)
@@ -56,38 +65,29 @@ public class UserHandler extends AbstractCustomHandler{
                   connection.close();
 
                 } else {
-                  raise500(context);
+                  raise500(context, res2.cause());
                   connection.close();
                 }
               });
             }
 
           } else {
-            raise500(context);
+            raise500(context, res.cause());
             connection.close();
           }
         });
 
       } else {
-        raise500(context);
+        raise500(context, getConn.cause());
       }
     });
 
   }
 
-  private void getUserDataNoCard(RoutingContext context) {
-    Account acc = new Account(false);
+  private void getUserDataNoCard(RoutingContext context, String email) {
+    Account acc = new Account(email, false);
 
-    context.response()
-      .setStatusCode(200)
-      .putHeader("Cache-Control", "no-store, no-cache")
-      .putHeader("X-Content-Type-Options", "nosniff")
-      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
-      .putHeader("X-Download-Options", "noopen")
-      .putHeader("X-XSS-Protection", "1; mode=block")
-      .putHeader("X-FRAME-OPTIONS", "DENY")
-      .putHeader("content-type", "application/json; charset=utf-8")
-      .end(Json.encodePrettily(acc.toJson()));
+    raise200(context, acc.toJson());
   }
 
   private void getUserDataWithCard(RoutingContext context, Row cardRow, Row userRow) {
@@ -104,16 +104,7 @@ public class UserHandler extends AbstractCustomHandler{
       cardRow.getBoolean("is_activated")
     );
 
-    context.response()
-      .setStatusCode(200)
-      .putHeader("Cache-Control", "no-store, no-cache")
-      .putHeader("X-Content-Type-Options", "nosniff")
-      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
-      .putHeader("X-Download-Options", "noopen")
-      .putHeader("X-XSS-Protection", "1; mode=block")
-      .putHeader("X-FRAME-OPTIONS", "DENY")
-      .putHeader("content-type", "application/json; charset=utf-8")
-      .end(Json.encodePrettily(acc.toJson()));
+    raise200(context, acc.toJson());
   }
 
   public void getUsers(RoutingContext context) {
@@ -131,33 +122,14 @@ public class UserHandler extends AbstractCustomHandler{
           jsonArray.add(users.toJsonObject());
         }
 
-        context.response()
-          .putHeader("content-type", "application/json; charset=utf-8")
-          .setStatusCode(200)
-          .end(Json.encodePrettily(jsonArray));
+        raise200(context, jsonArray);
 
       } else {
 
-        context.response()
-          .putHeader("content-type", "application/json; charset=utf-8")
-          .setStatusCode(200)
-          .end("Sorry! Ik heb nog geen response....");
+        raise200(context, new JsonArray());
 
       }
     });
-  }
-
-  private void raise500(RoutingContext context) {
-    context.response()
-      .setStatusCode(500)
-      .putHeader("Cache-Control", "no-store, no-cache")
-      .putHeader("X-Content-Type-Options", "nosniff")
-      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
-      .putHeader("X-Download-Options", "noopen")
-      .putHeader("X-XSS-Protection", "1; mode=block")
-      .putHeader("X-FRAME-OPTIONS", "DENY")
-      .putHeader("content-type", "application/json; charset=utf-8")
-      .end();
   }
 
 }

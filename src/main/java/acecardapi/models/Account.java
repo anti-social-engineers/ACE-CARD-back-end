@@ -10,6 +10,7 @@ package acecardapi.models;
 
 
 import io.vertx.core.json.JsonObject;
+import org.owasp.encoder.Encode;
 
 import java.time.LocalDate;
 import java.util.UUID;
@@ -43,12 +44,18 @@ public class Account {
     this.active_card = active_card;
   }
 
+
+  public Account(String email, Boolean has_card) {
+    this.email = email;
+    this.has_card = has_card;
+  }
+
   public JsonObject toJson() {
     if (has_card) {
       return new JsonObject()
-        .put("first_name", first_name)
-        .put("surname", last_name)
-        .put("mail", email)
+        .put("first_name", Encode.forHtml(first_name))
+        .put("surname", Encode.forHtml(last_name))
+        .put("mail", Encode.forHtml(email))
         .put("dob", dob.toString())
         .put("gender", gender)
         .put("role", role)
@@ -57,12 +64,9 @@ public class Account {
         .put("active_card", active_card);
     } else {
       return new JsonObject()
+        .put("mail", Encode.forHtml(email))
         .put("has_card", has_card);
     }
-  }
-
-  public Account(Boolean has_card) {
-    this.has_card = has_card;
   }
 
   public String getFirst_name() {
