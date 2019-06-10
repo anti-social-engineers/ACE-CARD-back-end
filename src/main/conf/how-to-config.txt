@@ -22,6 +22,9 @@ jwt.exptime : Amount of seconds before a key expires
 Example:
 {
   "http.port" : <int>,
+  "http.ssl" : <boolean>,
+  "http.image_dir" : "",
+  "http.max_image_mb" : <int>,
   "db.host" : "",
   "db.port" : <int>,
   "db.name" : "",
@@ -35,5 +38,6 @@ Example:
   "mail.port" : <int>,
   "mail.user" : "",
   "mail.pass" : "",
-  "registration.code_expire_time" : <int>
+  "registration.code_expire_time" : <int>,
+  "card.encryptionkey" : ""
 }

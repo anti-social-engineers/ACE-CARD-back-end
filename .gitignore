@@ -217,3 +217,8 @@ out
 .vertx
 
 config.json
+
+ssl/*.pem
+
+static/images/*
+static/temp/*
