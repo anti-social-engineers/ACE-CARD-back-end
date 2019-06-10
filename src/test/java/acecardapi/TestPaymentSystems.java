@@ -134,7 +134,7 @@ public class TestPaymentSystems {
             .putHeader("Authorization", "Bearer" + response.bodyAsJsonObject().getString("jsonWebToken"))
             .sendJsonObject(new JsonObject()
               .put("club_id", "2d466140-f70b-4ac3-8156-ee922657bacd")
-              .put("card_code", "cB7K+6hwm+dZCBmoNT76N7CPONRFTepfWql3jQ7n9+g=0000")
+              .put("card_code", "WNDBvlAKKzxuiNTaWLBvzI54Hiw4EuapQBz4y4HTnaU=0000")
               .put("card_pin", "5900")
               .put("amount", 10), res2 -> {
 
@@ -197,7 +197,7 @@ public class TestPaymentSystems {
             .putHeader("Authorization", "Bearer" + response.bodyAsJsonObject().getString("jsonWebToken"))
             .sendJsonObject(new JsonObject()
               .put("club_id", "2d466140-f70b-4ac3-8156-ee922657bacd")
-              .put("card_code", "nu3lP0Ez0Kyv/pivqMzo+3JZZHF0V9N2HWlEn458414=0000")
+              .put("card_code", "cB7K+6hwm+dZCBmoNT76N7CPONRFTepfWql3jQ7n9+g=0000")
               .put("card_pin", "5901")
               .put("amount", 10), res2 -> {
 
