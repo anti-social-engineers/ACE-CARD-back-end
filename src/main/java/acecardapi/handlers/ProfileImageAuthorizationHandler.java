@@ -25,7 +25,7 @@ public class ProfileImageAuthorizationHandler implements Handler<RoutingContext>
         if (sysopRes.result()) {
           context.next();
         } else {
-          isRole(context, "clubemployee", clubRes -> {
+          isRole(context, "club_employee", clubRes -> {
             if (clubRes.succeeded()) {
               if (clubRes.result()) {
                 context.next();
