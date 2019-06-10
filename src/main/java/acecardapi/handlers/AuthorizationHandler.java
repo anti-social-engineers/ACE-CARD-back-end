@@ -8,36 +8,60 @@
 
 package acecardapi.handlers;
 
+import acecardapi.apierrors.PermissionsViolation;
 import io.vertx.core.Handler;
+import io.vertx.core.json.Json;
 import io.vertx.ext.web.RoutingContext;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AuthorizationHandler implements Handler<RoutingContext> {
 
-  private String role;
+  private String[] roles;
 
-  public AuthorizationHandler(String authRole) {
-    this.role = authRole;
+  public AuthorizationHandler(String[] authRoles) {
+    this.roles = authRoles;
   }
 
   @Override
   public void handle(RoutingContext context) {
-    context.user().isAuthorized(this.role, authRes -> {
-      if (authRes.succeeded()) {
-        boolean isSysop = authRes.result();
 
-        if (isSysop) {
-          context.next();
-        } else {
+    // Need to use an atomic boolean because it we are going to need to change it inside a async call later.
+    AtomicBoolean isAuthorized = new AtomicBoolean(false);
 
-          // Unauthorized request
+    for (int i = 0; i < roles.length; i++) {
 
-          context.response()
-            .putHeader("content-type", "application/json; charset=utf-8")
-            .setStatusCode(403)
-            .end();
-
-        }
+      if (isAuthorized.get()) {
+        break;
       }
-    });
+      context.user().isAuthorized(roles[i], authRes -> {
+        if (authRes.succeeded()) {
+          isAuthorized.set(authRes.result());
+        }
+      });
+    }
+
+    if(!isAuthorized.get()) {
+      // Unauthorized request
+
+      PermissionsViolation error = new PermissionsViolation("You do not have enough permissions to access this endpoint.");
+
+      context.response()
+        .putHeader("content-type", "application/json; charset=utf-8")
+        .putHeader("Cache-Control", "no-store, no-cache")
+        .putHeader("X-Content-Type-Options", "nosniff")
+        .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+        .putHeader("X-Download-Options", "noopen")
+        .putHeader("X-XSS-Protection", "1; mode=block")
+        .putHeader("X-FRAME-OPTIONS", "DENY")
+        .putHeader("content-type", "application/json; charset=utf-8")
+        .end(Json.encodePrettily(error.errorJson()));
+
+    } else {
+      // Authorized request
+
+      context.next();
+
+    }
   }
 }

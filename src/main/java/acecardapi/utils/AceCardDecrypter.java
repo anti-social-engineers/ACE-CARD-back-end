@@ -21,8 +21,11 @@ public class AceCardDecrypter {
 
     public static String decrypt(String encryptedCardId, String key) {
         try {
+
+            var removePadding = encryptedCardId.substring(0, (encryptedCardId.length() - 4));
+
             //Decode the message from base64
-            var decodedMessage = Base64.getDecoder().decode(encryptedCardId);
+            var decodedMessage = Base64.getDecoder().decode(removePadding);
             //First 16 bytes are the initialization vector
             var iv = Arrays.copyOfRange(decodedMessage, 0, 16);
 

@@ -15,6 +15,7 @@ import acecardapi.models.Users;
 import acecardapi.utils.RandomToken;
 import io.reactiverse.pgclient.PgException;
 import io.reactiverse.pgclient.PgPool;
+import io.sentry.Sentry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -67,6 +68,9 @@ public class RegistrationHandler extends AbstractCustomHandler {
         .setStatusCode(500)
         .putHeader("content-type", "application/json; charset=utf-8")
         .end();
+
+      if (config.getBoolean("debug.enabled", false))
+        Sentry.capture(e);
 
     }
 
@@ -121,6 +125,9 @@ public class RegistrationHandler extends AbstractCustomHandler {
               .putHeader("content-type", "application/json; charset=utf-8")
               .setStatusCode(500)
               .end();
+
+            if (config.getBoolean("debug.enabled", false))
+              Sentry.capture(redisKeyResult.cause());
           }
         });
       } else {
