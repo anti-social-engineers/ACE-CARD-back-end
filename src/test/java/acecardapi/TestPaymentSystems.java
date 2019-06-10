@@ -1,7 +1,6 @@
 package acecardapi;
 
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
@@ -34,7 +33,7 @@ public class TestPaymentSystems {
 
   @Test
   @DisplayName("Should start a Web Server on port 8888")
-  @Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
+  @Timeout(value = 5, timeUnit = TimeUnit.SECONDS)
   void test_server_started(Vertx vertx, VertxTestContext testContext) {
     client
       .get(8888, "localhost", "/api/users")
@@ -47,7 +46,7 @@ public class TestPaymentSystems {
 
   @Test
   @DisplayName("[GET] Unauthorized (NO JWT)")
-  @Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
+  @Timeout(value = 5, timeUnit = TimeUnit.SECONDS)
   void test_unauthorized_jwt(Vertx vertx, VertxTestContext testContext) {
     client
       .get(8888, "localhost", "/api/club/payment")
@@ -63,7 +62,7 @@ public class TestPaymentSystems {
 
   @Test
   @DisplayName("[POST] Payment with no valid JSON body")
-  @Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
+  @Timeout(value = 5, timeUnit = TimeUnit.SECONDS)
   void test_422_payment(Vertx vertx, VertxTestContext testContext) {
     client
       .post(8888, "localhost", "/api/login")
@@ -75,13 +74,17 @@ public class TestPaymentSystems {
 
           client
             .post(8888, "localhost", "/api/club/payment")
-            .putHeader("Authorization", "Bearer" + response.bodyAsJsonObject().getString("jsonWebToken"))
+            .putHeader("Authorization", "Bearer " + response.bodyAsJsonObject().getString("jsonWebToken"))
             .sendJsonObject(new JsonObject(), res2 -> {
 
-              HttpResponse response2 = res2.result();
+              if (res2.succeeded()) {
 
-              assertEquals(422, response2.statusCode());
-              testContext.completeNow();
+                assertEquals(422, res2.result().statusCode());
+
+                testContext.completeNow();
+
+              }
+
             });
         }
       });
@@ -89,7 +92,7 @@ public class TestPaymentSystems {
 
   @Test
   @DisplayName("[POST] Payment with valid JSON body, sufficient funds")
-  @Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
+  @Timeout(value = 5, timeUnit = TimeUnit.SECONDS)
   void test_201_payment_sufficient(Vertx vertx, VertxTestContext testContext) {
     client
       .post(8888, "localhost", "/api/login")
@@ -101,25 +104,30 @@ public class TestPaymentSystems {
 
           client
             .post(8888, "localhost", "/api/club/payment")
-            .putHeader("Authorization", "Bearer" + response.bodyAsJsonObject().getString("jsonWebToken"))
+            .putHeader("Authorization", "Bearer " + response.bodyAsJsonObject().getString("jsonWebToken"))
             .sendJsonObject(new JsonObject()
               .put("club_id", "2d466140-f70b-4ac3-8156-ee922657bacd")
               .put("card_code", "cB7K+6hwm+dZCBmoNT76N7CPONRFTepfWql3jQ7n9+g=0000")
               .put("card_pin", "5900")
               .put("amount", 10), res2 -> {
 
-              HttpResponse response2 = res2.result();
+              if (res2.succeeded()) {
 
-              assertEquals(201, response2.statusCode());
-              testContext.completeNow();
+                assertEquals(201, res2.result().statusCode());
+
+                testContext.completeNow();
+
+              }
+
             });
+
         }
       });
   }
 
   @Test
   @DisplayName("[POST] Payment with valid JSON body, insufficient funds")
-  @Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
+  @Timeout(value = 5, timeUnit = TimeUnit.SECONDS)
   void test_400_payment_insufficient(Vertx vertx, VertxTestContext testContext) {
     client
       .post(8888, "localhost", "/api/login")
@@ -131,17 +139,22 @@ public class TestPaymentSystems {
 
           client
             .post(8888, "localhost", "/api/club/payment")
-            .putHeader("Authorization", "Bearer" + response.bodyAsJsonObject().getString("jsonWebToken"))
+            .putHeader("Authorization", "Bearer " + response.bodyAsJsonObject().getString("jsonWebToken"))
             .sendJsonObject(new JsonObject()
               .put("club_id", "2d466140-f70b-4ac3-8156-ee922657bacd")
               .put("card_code", "WNDBvlAKKzxuiNTaWLBvzI54Hiw4EuapQBz4y4HTnaU=0000")
               .put("card_pin", "5900")
               .put("amount", 10), res2 -> {
 
-              HttpResponse response2 = res2.result();
+              if (res2.succeeded()) {
 
-              assertEquals(400, response2.statusCode());
-              testContext.completeNow();
+                assertEquals(400, res2.result().statusCode());
+                assertEquals("credits_violation", res2.result().bodyAsJsonObject().getString("error_type"));
+
+                testContext.completeNow();
+
+              }
+
             });
         }
       });
@@ -149,7 +162,7 @@ public class TestPaymentSystems {
 
   @Test
   @DisplayName("[POST] Payment with valid JSON body, blocked card")
-  @Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
+  @Timeout(value = 5, timeUnit = TimeUnit.SECONDS)
   void test_403_payment_blocked(Vertx vertx, VertxTestContext testContext) {
     client
       .post(8888, "localhost", "/api/login")
@@ -163,18 +176,22 @@ public class TestPaymentSystems {
 
           client
             .post(8888, "localhost", "/api/club/payment")
-            .putHeader("Authorization", "Bearer" + response.bodyAsJsonObject().getString("jsonWebToken"))
+            .putHeader("Authorization", "Bearer " + response.bodyAsJsonObject().getString("jsonWebToken"))
             .sendJsonObject(new JsonObject()
               .put("club_id", "2d466140-f70b-4ac3-8156-ee922657bacd")
               .put("card_code", "nu3lP0Ez0Kyv/pivqMzo+3JZZHF0V9N2HWlEn458414=0000")
               .put("card_pin", "5900")
               .put("amount", 10), res2 -> {
 
-              HttpResponse response2 = res2.result();
+              if (res2.succeeded()) {
 
-              assertEquals(403, response2.statusCode());
-              assertEquals(response2.bodyAsJsonObject().getString("error_type"), "blocked");
-              testContext.completeNow();
+                assertEquals(403, res2.result().statusCode());
+                assertEquals("blocked", res2.result().bodyAsJsonObject().getString("error_type"));
+
+                testContext.completeNow();
+
+              }
+
             });
         }
       });
@@ -182,7 +199,7 @@ public class TestPaymentSystems {
 
   @Test
   @DisplayName("[POST] Payment with valid JSON body, invalid PIN")
-  @Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
+  @Timeout(value = 5, timeUnit = TimeUnit.SECONDS)
   void test_401_payment_invalid_PIN(Vertx vertx, VertxTestContext testContext) {
     client
       .post(8888, "localhost", "/api/login")
@@ -194,18 +211,22 @@ public class TestPaymentSystems {
 
           client
             .post(8888, "localhost", "/api/club/payment")
-            .putHeader("Authorization", "Bearer" + response.bodyAsJsonObject().getString("jsonWebToken"))
+            .putHeader("Authorization", "Bearer " + response.bodyAsJsonObject().getString("jsonWebToken"))
             .sendJsonObject(new JsonObject()
               .put("club_id", "2d466140-f70b-4ac3-8156-ee922657bacd")
               .put("card_code", "cB7K+6hwm+dZCBmoNT76N7CPONRFTepfWql3jQ7n9+g=0000")
-              .put("card_pin", "5901")
+              .put("card_pin", "5902")
               .put("amount", 10), res2 -> {
 
-              HttpResponse response2 = res2.result();
+              if (res2.succeeded()) {
 
-              assertEquals(401, response2.statusCode());
-              assertEquals(response2.bodyAsJsonObject().getString("error_type"), "authorisation_violation");
-              testContext.completeNow();
+                assertEquals(401, res2.result().statusCode());
+                assertEquals("authorisation_violation", res2.result().bodyAsJsonObject().getString("error_type"));
+
+                testContext.completeNow();
+
+              }
+
             });
         }
       });

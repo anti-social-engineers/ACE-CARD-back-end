@@ -65,7 +65,7 @@ public class ClubHandler extends AbstractCustomHandler{
 
       String cardCode = jsonInput.getString("card_code");
 
-      String decryptedCardCode = decrypt(cardCode, config.getString("card.encryptionkey", ""));
+      String decryptedCardCode = decrypt(cardCode, config.getString("card.encryptionkey", "C*F-JaNdRgUjXn2r5u8x/A?D(G+KbPeS"));
 
       // Check if a card with this code exists
       dbClient.getConnection(receivedConnection -> {
@@ -194,7 +194,7 @@ public class ClubHandler extends AbstractCustomHandler{
 
             String cardCode = jsonBody.getString("card_code");
 
-            String decryptedCardCode = decrypt(cardCode, config.getString("card.encryptionkey", ""));
+            String decryptedCardCode = decrypt(cardCode, config.getString("card.encryptionkey", "C*F-JaNdRgUjXn2r5u8x/A?D(G+KbPeS"));
 
             String redisKey = "pin_attempt:" + decryptedCardCode;
 

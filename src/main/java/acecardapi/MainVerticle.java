@@ -81,7 +81,7 @@ public class MainVerticle extends AbstractVerticle {
     Setup Email Client
      */
     MailConfig config = new MailConfig();
-    config.setHostname(config().getString("mail.host", "'"));
+    config.setHostname(config().getString("mail.host", ""));
     config.setPort(config().getInteger("mail.port", 587));
     config.setStarttls(StartTLSOptions.REQUIRED);
     config.setUsername(config().getString("mail.user", ""));
