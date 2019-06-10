@@ -78,7 +78,7 @@ public class TestPaymentSystems {
             .putHeader("Authorization", "Bearer" + response.bodyAsJsonObject().getString("jsonWebToken"))
             .sendJsonObject(new JsonObject(), res2 -> {
 
-              HttpResponse response2 = res.result();
+              HttpResponse response2 = res2.result();
 
               assertEquals(422, response2.statusCode());
               testContext.completeNow();
@@ -108,7 +108,7 @@ public class TestPaymentSystems {
               .put("card_pin", "5900")
               .put("amount", 10), res2 -> {
 
-              HttpResponse response2 = res.result();
+              HttpResponse response2 = res2.result();
 
               assertEquals(201, response2.statusCode());
               testContext.completeNow();
@@ -138,7 +138,7 @@ public class TestPaymentSystems {
               .put("card_pin", "5900")
               .put("amount", 10), res2 -> {
 
-              HttpResponse response2 = res.result();
+              HttpResponse response2 = res2.result();
 
               assertEquals(400, response2.statusCode());
               testContext.completeNow();
@@ -170,7 +170,7 @@ public class TestPaymentSystems {
               .put("card_pin", "5900")
               .put("amount", 10), res2 -> {
 
-              HttpResponse response2 = res.result();
+              HttpResponse response2 = res2.result();
 
               assertEquals(403, response2.statusCode());
               assertEquals(response2.bodyAsJsonObject().getString("error_type"), "blocked");
@@ -201,7 +201,7 @@ public class TestPaymentSystems {
               .put("card_pin", "5901")
               .put("amount", 10), res2 -> {
 
-              HttpResponse response2 = res.result();
+              HttpResponse response2 = res2.result();
 
               assertEquals(401, response2.statusCode());
               assertEquals(response2.bodyAsJsonObject().getString("error_type"), "authorisation_violation");
