@@ -47,6 +47,7 @@ public class AuthorizationHandler implements Handler<RoutingContext> {
       PermissionsViolation error = new PermissionsViolation("You do not have enough permissions to access this endpoint.");
 
       context.response()
+        .setStatusCode(403)
         .putHeader("content-type", "application/json; charset=utf-8")
         .putHeader("Cache-Control", "no-store, no-cache")
         .putHeader("X-Content-Type-Options", "nosniff")
