@@ -8,6 +8,7 @@
 
 package acecardapi.handlers;
 
+import acecardapi.apierrors.ParameterNotFoundViolation;
 import acecardapi.models.Account;
 import acecardapi.models.Users;
 import io.reactiverse.pgclient.*;
@@ -16,6 +17,8 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
 import java.util.UUID;
+
+import static acecardapi.utils.RequestUtilities.singlePathParameterCheck;
 
 public class UserHandler extends AbstractCustomHandler{
 
@@ -105,6 +108,72 @@ public class UserHandler extends AbstractCustomHandler{
     );
 
     raise200(context, acc.toJson());
+  }
+
+  public void userTransactions(RoutingContext context) {
+
+    if (!singlePathParameterCheck("sorting", context.request()))
+      raise422(context, new ParameterNotFoundViolation("sorting"));
+    if (!context.request().getParam("sorting").equals("DESC") || !context.request().getParam("sorting").equals("ASC"))
+
+    if (!singlePathParameterCheck("cursor", context.request())) {
+      processUserTransactionsCursor(context);
+    } else {
+      processUserTransactions(context);
+    }
+
+  }
+
+  private void processUserTransactions(RoutingContext context) {
+
+    dbClient.getConnection(getConnRes -> {
+      if (getConnRes.succeeded()) {
+
+        PgConnection connection = getConnRes.result();
+
+        connection.preparedQuery("SELECT id FROM cards WHERE user_id_id = $1", Tuple.of(UUID.fromString(context.user().principal().getString("sub"))), cardRes -> {
+
+          if (cardRes.succeeded()) {
+
+            if (cardRes.result().rowCount() <= 0 || cardRes.result().rowCount() > 1) {
+              raise404(context);
+              connection.close();
+            } else {
+
+              UUID cardId = cardRes.result().iterator().next().getUUID("id");
+
+              connection.preparedQuery("SELECT pa.id, pa.amount, pa.paid_at, cl.club_name FROM payments as pa INNER JOIN clubs as cl ON pa.club_id = cl.id WHERE pa.card_id_id = $1 ORDER BY pa.paid_at, LIMIT 3",
+                Tuple.of(cardId), paymentRes -> {
+
+                 if (paymentRes.succeeded()) {
+
+                   PgRowSet rows = paymentRes.result();
+
+
+                 } else {
+                   raise500(context, paymentRes.cause());
+                   connection.close();
+                 }
+
+                });
+
+            }
+
+          } else {
+            raise500(context, cardRes.cause());
+            connection.close();
+          }
+        });
+
+      } else {
+        raise500(context, getConnRes.cause());
+      }
+    });
+
+  }
+
+  private void processUserTransactionsCursor(RoutingContext context) {
+
   }
 
   public void getUsers(RoutingContext context) {

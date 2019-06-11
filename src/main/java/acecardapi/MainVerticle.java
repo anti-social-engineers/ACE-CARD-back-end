@@ -175,8 +175,9 @@ public class MainVerticle extends AbstractVerticle {
     router.route("/api/users").handler(new AuthorizationHandler(new String[]{"sysop"}));
     router.get("/api/users").handler(userHandler::getUsers);
 
-    //// Account information ////
+    //// Account & User information ////
     router.get("/api/account").handler(userHandler::getUserData);
+    router.get("/api/account/payments/:sorting/:cursor").handler(userHandler::userTransactions);
 
 
     //// Club endpoints ////
