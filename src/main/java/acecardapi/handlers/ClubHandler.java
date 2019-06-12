@@ -173,15 +173,7 @@ public class ClubHandler extends AbstractCustomHandler{
   }
 
   public void cardPayment(RoutingContext context) {
-
-    // Check of club id == jwt club id - check
-    // Check of alle params aanwezig zijn
-    // Convert card code
-    // CHECK REDIS OP ATTEMPTS
-    // Haal Salt e.d. op
-    // Check of user Authorized is
-
-    // Daarna transaction voor het aanmaken van de payment en afhalen van het bedrag
+    // Process a physical payment at a club using an ACE card
 
     attributesCheckJsonObject(context.getBodyAsJson(), requiredAttributesProcessCardPayment, attCheckRes -> {
 
@@ -287,7 +279,7 @@ public class ClubHandler extends AbstractCustomHandler{
                       .putHeader("X-FRAME-OPTIONS", "DENY")
                       .putHeader("content-type", "application/json; charset=utf-8")
 
-                      .end(Json.encodePrettily(payment.toJsonObject()));
+                      .end(Json.encodePrettily(payment.toJsonObject(false)));
 
                     connection.close();
 

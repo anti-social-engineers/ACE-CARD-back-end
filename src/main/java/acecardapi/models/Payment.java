@@ -43,19 +43,18 @@ public class Payment {
     return Tuple.of(id, amount, paid_at, cardId, clubId);
   }
 
-  public JsonObject toJsonObject() {
+  public JsonObject toJsonObject(Boolean for_user_overview) {
+    if (for_user_overview) {
+      return new JsonObject()
+        .put("id", id.toString())
+        .put("amount", amount.toString())
+        .put("time", paid_at.toString())
+        .put("club", Encode.forHtml(clubName));
+    }
     return new JsonObject()
       .put("id", id.toString())
       .put("amount", amount.toString())
       .put("time", paid_at.toString());
-  }
-
-  public JsonObject toJsonObjectList() {
-    return new JsonObject()
-      .put("id", id.toString())
-      .put("amount", amount.toString())
-      .put("time", paid_at.toString())
-      .put("club", Encode.forHtml(clubName));
   }
 
 }
