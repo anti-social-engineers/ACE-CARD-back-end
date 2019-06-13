@@ -41,7 +41,7 @@ public class UserHandler extends AbstractCustomHandler{
         // First: Check if the user has a card or not
         PgConnection connection = getConn.result();
 
-        connection.preparedQuery("SELECT is_activated FROM cards WHERE user_id_id=$1", Tuple.of(userId), res -> {
+        connection.preparedQuery("SELECT is_activated, credits FROM cards WHERE user_id_id=$1", Tuple.of(userId), res -> {
           if (res.succeeded()) {
 
             if(res.result().rowCount() == 0) {
@@ -109,7 +109,8 @@ public class UserHandler extends AbstractCustomHandler{
       userRow.getUUID("image_id"),
       config.getString("http.image_dir", "static/images/"),
       true,
-      cardRow.getBoolean("is_activated")
+      cardRow.getBoolean("is_activated"),
+      cardRow.getNumeric("credits").doubleValue()
     );
 
     raise200(context, acc.toJson());
