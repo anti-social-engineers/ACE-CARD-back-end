@@ -21,6 +21,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.Iterator;
 import java.util.UUID;
 
@@ -124,7 +125,14 @@ public class UserHandler extends AbstractCustomHandler{
     else if (context.request().getParam("sorting").equals("desc") || context.request().getParam("sorting").equals("asc"))
     {
       if (singlePathParameterCheck("cursor", context.request())) {
-        processUserPayments(context, true);
+
+        try {
+          OffsetDateTime.parse(context.request().getParam("cursor"));
+          processUserPayments(context, true);
+        } catch (DateTimeParseException e) {
+          raise422(context, new InputFormatViolation("cursor"));
+        }
+
       } else {
         processUserPayments(context, false);
       }
