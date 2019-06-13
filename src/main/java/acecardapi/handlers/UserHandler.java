@@ -11,10 +11,12 @@ package acecardapi.handlers;
 import acecardapi.apierrors.InputFormatViolation;
 import acecardapi.apierrors.ParameterNotFoundViolation;
 import acecardapi.models.Account;
+import acecardapi.models.Deposit;
 import acecardapi.models.Payment;
 import acecardapi.models.Users;
 import io.reactiverse.pgclient.*;
 import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -187,26 +189,7 @@ public class UserHandler extends AbstractCustomHandler{
 
                    // Remove the last element from the list if row count > max return size
 
-                   String next_cursor = null;
-
-                   if (rows.rowCount() == config.getInteger("queries.max_return_size", 25) + 1) {
-                     next_cursor = jsonArray.getJsonObject(jsonArray.size() - 1).getString("time");
-                   }
-
-                   if (next_cursor != null) {
-                     jsonArray.remove(jsonArray.size() -1);
-
-                     JsonObject responseObject = new JsonObject().put("payments", jsonArray).put("next_cursor", next_cursor);
-
-                     raise200(context, responseObject);
-                     connection.close();
-                   } else {
-
-                     JsonObject responseObject = new JsonObject().put("payments", jsonArray).put("next_cursor", (String) null);
-
-                     raise200(context, responseObject);
-                     connection.close();
-                   }
+                   raise200(context, paymentsDepositsResponseHandler(rows, jsonArray, "payments"));
 
 
                  } else {
@@ -263,6 +246,148 @@ public class UserHandler extends AbstractCustomHandler{
       return Tuple.of(cardId, OffsetDateTime.parse(cursor));
     } else {
       return Tuple.of(cardId);
+    }
+  }
+
+  public void userDeposits(RoutingContext context) {
+
+    if (!singlePathParameterCheck("sorting", context.request()))
+      raise422(context, new ParameterNotFoundViolation("sorting"));
+    else if (context.request().getParam("sorting").equals("desc") || context.request().getParam("sorting").equals("asc"))
+    {
+      if (singlePathParameterCheck("cursor", context.request())) {
+
+        try {
+          OffsetDateTime.parse(context.request().getParam("cursor"));
+          processUserDeposits(context, true);
+        } catch (DateTimeParseException e) {
+          raise422(context, new InputFormatViolation("cursor"));
+        }
+
+      } else {
+        processUserDeposits(context, false);
+      }
+    } else {
+      raise422(context, new InputFormatViolation("sorting"));
+    }
+  }
+
+  private void processUserDeposits(RoutingContext context, boolean has_cursor) {
+
+    if (has_cursor) {
+      processUserDepositsQuery(context, processUserDepositsCursorQuery(context.request().getParam("sorting")), true);
+    } else {
+      processUserDepositsQuery(context, processUserDepositsQuery(context.request().getParam("sorting")), false);
+    }
+
+  }
+
+  private void processUserDepositsQuery(RoutingContext context, String query, boolean has_cursor) {
+
+    dbClient.getConnection(getConnRes -> {
+      if (getConnRes.succeeded()) {
+
+        PgConnection connection = getConnRes.result();
+
+        connection.preparedQuery("SELECT id FROM cards WHERE user_id_id = $1", Tuple.of(UUID.fromString(context.user().principal().getString("sub"))), cardRes -> {
+
+          if (cardRes.succeeded()) {
+
+            if (cardRes.result().rowCount() <= 0 || cardRes.result().rowCount() > 1) {
+              connection.close();
+            } else {
+
+              UUID cardId = cardRes.result().iterator().next().getUUID("id");
+
+              connection.preparedQuery(query, processUserDepositsTuple(has_cursor, cardId, context.request().getParam("cursor")), depositsRes -> {
+
+                if (depositsRes.succeeded()) {
+
+                  PgRowSet rows = depositsRes.result();
+
+                  JsonArray jsonArray = new JsonArray();
+
+                  for (Row row: rows) {
+                    Deposit deposit = new Deposit(row.getUUID("id"),
+                      row.getNumeric("amount").doubleValue(),
+                      row.getOffsetDateTime("deposited_at"));
+
+                    jsonArray.add(deposit.toJsonObject());
+                  }
+
+                  raise200(context, paymentsDepositsResponseHandler(rows, jsonArray, "deposits"));
+
+                } else {
+                  raise500(context, depositsRes.cause());
+                  connection.close();
+                }
+
+              });
+
+            }
+
+          } else {
+            raise500(context, cardRes.cause());
+            connection.close();
+          }
+        });
+
+      } else {
+        raise500(context, getConnRes.cause());
+      }
+    });
+
+  }
+
+  private String processUserDepositsQuery(String order) {
+
+    // We want to send back our LIMIT, but we also need to know the next item after limit
+    int limit = config.getInteger("queries.max_return_size", 25) + 1;
+
+    if (order.equals("desc")) {
+      return "SELECT id, amount, deposited_at FROM deposits  WHERE card_id_id = $1 ORDER BY deposited_at DESC LIMIT " + limit;
+    } else {
+      return "SELECT id, amount, deposited_at FROM deposits  WHERE card_id_id = $1 ORDER BY deposited_at ASC LIMIT " + limit;
+    }
+
+  }
+
+  private String processUserDepositsCursorQuery(String order) {
+
+    // We want to send back our LIMIT, but we also need to know the next item after limit
+    int limit = config.getInteger("queries.max_return_size", 25) + 1;
+
+    if (order.equals("desc")) {
+      return "SELECT id, amount, deposited_at FROM deposits  WHERE card_id_id = $1 AND deposited_at <= $2 ORDER BY deposited_at DESC LIMIT " + limit;
+    } else {
+      return "SELECT id, amount, deposited_at FROM deposits  WHERE card_id_id = $1 AND deposited_at > $2 ORDER BY deposited_at DESC LIMIT " + limit;
+    }
+  }
+
+  private Tuple processUserDepositsTuple(boolean has_cursor, UUID cardId, String cursor) {
+
+    if (has_cursor) {
+      return Tuple.of(cardId, OffsetDateTime.parse(cursor));
+    } else {
+      return Tuple.of(cardId);
+    }
+  }
+
+  private JsonObject paymentsDepositsResponseHandler(PgRowSet rows, JsonArray jsonArray, String type) {
+
+    String next_cursor = null;
+
+    if (rows.rowCount() == config.getInteger("queries.max_return_size", 25) + 1) {
+      next_cursor = jsonArray.getJsonObject(jsonArray.size() - 1).getString("time");
+    }
+
+    if (next_cursor != null) {
+      jsonArray.remove(jsonArray.size() -1);
+
+      return new JsonObject().put(type, jsonArray).put("next_cursor", next_cursor);
+    } else {
+
+      return new JsonObject().put(type, jsonArray).put("next_cursor", (String) null);
     }
   }
 

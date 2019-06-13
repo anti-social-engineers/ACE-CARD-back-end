@@ -179,6 +179,8 @@ public class MainVerticle extends AbstractVerticle {
     router.get("/api/account").handler(userHandler::getUserData);
     router.get("/api/account/payments/:sorting").handler(userHandler::userPayments);
     router.get("/api/account/payments/:sorting/:cursor").handler(userHandler::userPayments);
+    router.get("/api/account/deposits/:sorting").handler(userHandler::userDeposits);
+    router.get("/api/account/deposits/:sorting/:cursor").handler(userHandler::userDeposits);
 
 
     //// Club endpoints ////
