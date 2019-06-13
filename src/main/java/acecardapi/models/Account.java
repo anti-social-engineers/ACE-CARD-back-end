@@ -12,6 +12,7 @@ package acecardapi.models;
 import io.vertx.core.json.JsonObject;
 import org.owasp.encoder.Encode;
 
+import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -26,8 +27,9 @@ public class Account {
   private String image;
   private Boolean has_card;
   private Boolean active_card;
+  private Double credits;
 
-  public Account(String first_name, String last_name, String email, LocalDate dob, String gender, String role, UUID image_id, String image_path, Boolean has_card, Boolean active_card) {
+  public Account(String first_name, String last_name, String email, LocalDate dob, String gender, String role, UUID image_id, String image_path, Boolean has_card, Boolean active_card, Double credits) {
     this.first_name = first_name;
     this.last_name = last_name;
     this.email = email;
@@ -42,6 +44,7 @@ public class Account {
     }
     this.has_card = has_card;
     this.active_card = active_card;
+    this.credits = credits;
   }
 
 
@@ -52,6 +55,10 @@ public class Account {
 
   public JsonObject toJson() {
     if (has_card) {
+
+      DecimalFormat decimalFormat = new DecimalFormat("0.00");
+      String stringCredits = decimalFormat.format(credits);
+
       return new JsonObject()
         .put("first_name", Encode.forHtml(first_name))
         .put("surname", Encode.forHtml(last_name))
@@ -61,7 +68,8 @@ public class Account {
         .put("role", role)
         .put("image", image)
         .put("has_card", has_card)
-        .put("active_card", active_card);
+        .put("active_card", active_card)
+        .put("credits", stringCredits);
     } else {
       return new JsonObject()
         .put("mail", Encode.forHtml(email))
