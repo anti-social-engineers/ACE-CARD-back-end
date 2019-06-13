@@ -34,6 +34,11 @@ public class ActivationHandler extends AbstractCustomHandler {
   }
 
 
+  /**
+   Function which handles activating an account
+   @param context contains information about the request
+   @return void
+   */
   public void activateUser(RoutingContext context) {
 
     String activationKey = context.request().getParam("activationkey");
@@ -109,6 +114,12 @@ public class ActivationHandler extends AbstractCustomHandler {
 
   }
 
+  /**
+   Function which handles activating an user in the database
+   @param userId the uuid of the user
+   @param resultHandler handler for async processing
+   @return void
+   */
   private void activateDatabaseUser(UUID userId, Handler<AsyncResult<UUID>> resultHandler) {
 
     dbClient.preparedQuery("UPDATE users SET is_email_verified = true WHERE id = $1", Tuple.of(userId), res -> {

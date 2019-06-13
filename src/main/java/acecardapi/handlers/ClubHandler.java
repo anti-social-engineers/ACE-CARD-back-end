@@ -42,11 +42,12 @@ public class ClubHandler extends AbstractCustomHandler{
     this.authProvider = authProvider;
   }
 
+  /**
+   Function which handles scanning of an ACE-card
+   @param context contains information about the request
+   @return void
+   */
   public void scanCard(RoutingContext context) {
-     /*
-     Function which handles the scanning of a Ace Card.
-     */
-
     JsonObject jsonInput = context.getBodyAsJson();
 
     if (jsonInput == null || jsonInput.isEmpty() || jsonInput.getString("card_code", null) == null) {
@@ -175,6 +176,11 @@ public class ClubHandler extends AbstractCustomHandler{
     }
   }
 
+  /**
+   Function which handles payment of an ACE-card
+   @param context contains information about the request
+   @return void
+   */
   public void cardPayment(RoutingContext context) {
     // Process a physical payment at a club using an ACE card
 
@@ -230,6 +236,15 @@ public class ClubHandler extends AbstractCustomHandler{
     });
   }
 
+  /**
+   Function which further processes a payment with an ACE-card
+   @param context contains information about the request
+   @param requestBody JsonObject which contains the request body as json
+   @param decryptedCardCode the card_code but decrypted
+   @param attempts how many attempts have already been made
+   @param attemptsCode the code used to register attempts on
+   @return void
+   */
   private void processCardPayment(RoutingContext context, JsonObject requestBody, String decryptedCardCode, String attempts, String attemptsCode) {
 
     dbClient.getConnection(getConnectionRes -> {
@@ -312,11 +327,28 @@ public class ClubHandler extends AbstractCustomHandler{
     });
   }
 
+  /**
+   Function which check whether a provided PIN equals the actual pin
+   @param inputPIN the PIN as provided by the user
+   @param salt the salt used for the PIN
+   @param hashedPin the actual PIN hashed+salted
+   @return void
+   */
   private boolean checkPIN(String inputPIN, String salt, String hashedPin) {
     String hashedInputPIN = authProvider.computeHash(inputPIN, salt);
     return hashedPin.equals(hashedInputPIN);
   }
 
+  // TODO: FIX RACE CONDITIONS REEEEEEEEE
+  /**
+   Function which starts a transaction for inserting the payment
+   @param connection connection to the db
+   @param cardId uuid of the card
+   @param newCreditLevel the new level of credits
+   @param payment a payment object
+   @param resultHandler handler for async processing
+   @return void
+   */
   private void processCardPaymentTransaction(PgConnection connection, UUID cardId, Double newCreditLevel, Payment payment, Handler<AsyncResult<Double>> resultHandler) {
 
     PgTransaction transaction = connection.begin();
@@ -342,6 +374,12 @@ public class ClubHandler extends AbstractCustomHandler{
     });
   }
 
+  /**
+   Function which adds an additional attempt
+   @param attempts the current amount of attempts
+   @param attemptsCode the code used to track attempts
+   @return void
+   */
   private void addPINAttempt(String attempts, String attemptsCode) {
 
     int attemptsNumber;

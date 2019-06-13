@@ -23,6 +23,11 @@ public class AuthorizationHandler implements Handler<RoutingContext> {
     this.roles = authRoles;
   }
 
+  /**
+   Function which handles authorization to endpoints based on a provided list
+   @param context contains information about the request
+   @return void
+   */
   @Override
   public void handle(RoutingContext context) {
 
