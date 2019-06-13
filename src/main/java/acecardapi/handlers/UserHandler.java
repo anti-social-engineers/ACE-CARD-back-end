@@ -15,16 +15,12 @@ import acecardapi.models.Deposit;
 import acecardapi.models.Payment;
 import acecardapi.models.Users;
 import io.reactiverse.pgclient.*;
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
-import java.util.Iterator;
 import java.util.UUID;
 
 import static acecardapi.utils.RequestUtilities.singlePathParameterCheck;
