@@ -162,7 +162,8 @@ public class MainVerticle extends AbstractVerticle {
     router.route("/api/acecard/*").handler(jwtAuthHandler);
     router.route("/api/club/*").handler(jwtAuthHandler);
     router.route("/api/administration/*").handler(jwtAuthHandler);
-    router.route("/api/payments/*").handler(jwtAuthHandler);
+//    router.route("/api/payments/*").handler(jwtAuthHandler);
+    router.route("/api/deposits/*").handler(jwtAuthHandler);
 
     //// Handle register/login endpoints ////
     router.route("/api/register").handler(BodyHandler.create(false));
@@ -212,8 +213,14 @@ public class MainVerticle extends AbstractVerticle {
 
 
     //// Payment Endpoints ////
-    router.post("/api/payments/charge").handler(BodyHandler.create(false));
-    router.post("/api/payments/charge").handler(paymentHandler::createStripeCharge);
+    router.post("/api/deposits/create").handler(BodyHandler.create(false));
+    router.post("/api/deposits/create").handler(paymentHandler::stripeSource);
+//    router.post("/api/payments/charge").handler(BodyHandler.create(false));
+//    router.post("/api/payments/charge").handler(paymentHandler::createStripeCharge);
+
+    //// Paymnet Webhooks ////
+    router.post("/api/webhooks/deposits").handler(BodyHandler.create(false));
+    router.post("/api/webhooks/deposits").handler(paymentHandler::createStripeCharge);
 
 
     // HttpServer options

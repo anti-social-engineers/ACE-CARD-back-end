@@ -8,6 +8,7 @@
 
 package acecardapi.models;
 
+import io.reactiverse.pgclient.Tuple;
 import io.vertx.core.json.JsonObject;
 
 import java.time.OffsetDateTime;
@@ -17,20 +18,35 @@ public class Deposit {
 
   private UUID id;
   private Double amount;
-  private OffsetDateTime paid_at;
+  private OffsetDateTime deposited_at;
+  private UUID cardId;
 
-  public Deposit(UUID id, Double amount, OffsetDateTime paid_at) {
+  public Deposit(Double amount, UUID cardId) {
+    this.id = UUID.randomUUID();
+    this.amount = amount;
+    this.deposited_at = OffsetDateTime.now();
+    this.cardId = cardId;
+  }
+
+  public Deposit(UUID id, Double amount, OffsetDateTime deposited_at) {
     this.id = id;
     this.amount = amount;
-    this.paid_at = paid_at;
+    this.deposited_at = deposited_at;
   }
 
   public JsonObject toJsonObject() {
     return new JsonObject()
       .put("id", id.toString())
       .put("amount", amount.toString())
-      .put("time", paid_at.toString());
+      .put("time", deposited_at.toString());
   }
 
+  public Tuple toTuple() {
+    return Tuple.of(id, amount, deposited_at, cardId);
+  }
+
+  public UUID getId() {
+    return id;
+  }
 }
 
