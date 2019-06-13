@@ -23,5 +23,6 @@
   "stripe.enabled" : ,
   "stripe.apikey" : "",
   "card.max_tries" :,
-  "card.failed_attempts_expiration" :
+  "card.failed_attempts_expiration" :,
+  "queries.max_return_size" :
 }

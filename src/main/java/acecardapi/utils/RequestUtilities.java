@@ -12,6 +12,7 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
+import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 
 public class RequestUtilities {
@@ -54,6 +55,12 @@ public class RequestUtilities {
     }
     if (!failed)
       resultHandler.handle(Future.succeededFuture(""));
+  }
+
+  public static boolean singlePathParameterCheck(String pathParameter, HttpServerRequest request) {
+
+    return request.getParam(pathParameter) != null;
+
   }
 
 }

@@ -10,6 +10,7 @@ package acecardapi.models;
 
 import io.reactiverse.pgclient.Tuple;
 import io.vertx.core.json.JsonObject;
+import org.owasp.encoder.Encode;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -21,6 +22,7 @@ public class Payment {
   private OffsetDateTime paid_at;
   private UUID cardId;
   private UUID clubId;
+  private String clubName;
 
   public Payment(Double amount, UUID cardId, UUID clubId) {
     this.id = UUID.randomUUID();
@@ -30,11 +32,25 @@ public class Payment {
     this.clubId = clubId;
   }
 
+  public Payment(UUID id, Double amount, OffsetDateTime paid_at, String clubName) {
+    this.id = id;
+    this.amount = amount;
+    this.paid_at = paid_at;
+    this.clubName = clubName;
+  }
+
   public Tuple toTuple() {
     return Tuple.of(id, amount, paid_at, cardId, clubId);
   }
 
-  public JsonObject toJsonObject() {
+  public JsonObject toJsonObject(Boolean for_user_overview) {
+    if (for_user_overview) {
+      return new JsonObject()
+        .put("id", id.toString())
+        .put("amount", amount.toString())
+        .put("time", paid_at.toString())
+        .put("club", Encode.forHtml(clubName));
+    }
     return new JsonObject()
       .put("id", id.toString())
       .put("amount", amount.toString())
