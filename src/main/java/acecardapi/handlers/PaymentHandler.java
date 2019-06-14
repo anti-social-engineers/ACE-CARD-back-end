@@ -13,10 +13,7 @@ import acecardapi.models.Deposit;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Charge;
 import com.stripe.model.Source;
-import io.reactiverse.pgclient.PgConnection;
-import io.reactiverse.pgclient.PgPool;
-import io.reactiverse.pgclient.PgRowSet;
-import io.reactiverse.pgclient.Tuple;
+import io.reactiverse.pgclient.*;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -258,6 +255,84 @@ public class PaymentHandler extends AbstractCustomHandler {
         resultHandler.handle(Future.failedFuture(depositRes.cause()));
       }
 
+    });
+  }
+
+  public void succeededChargeWebhook(RoutingContext context) {
+
+    String source = context.getBodyAsJson().getJsonObject("data").getJsonObject("object").getJsonObject("source").getString("id");
+
+    dbClient.getConnection(getConnectionRes -> {
+      if (getConnectionRes.succeeded()) {
+
+        PgConnection connection = getConnectionRes.result();
+
+        succeededChargeWebhookTransaction(connection, source, res -> {
+
+          if (res.succeeded()) {
+            //TODO: CHANGE TO 200
+            raise201(context);
+            connection.close();
+          } else {
+            raise500(context, res.cause());
+            connection.close();
+          }
+
+        });
+
+      } else {
+        raise500(context, getConnectionRes.cause());
+      }
+    });
+
+  }
+
+  private void succeededChargeWebhookTransaction(PgConnection connection, String source, Handler<AsyncResult<UUID>> resultHandler) {
+
+    PgTransaction transaction = connection.begin();
+
+    transaction.preparedQuery("SELECT id, card_id_id, amount FROM deposits WHERE source_id = $1", Tuple.of(source), getDepositRes -> {
+      if (getDepositRes.succeeded()) {
+
+        if (getDepositRes.result().rowCount() <= 0) {
+          resultHandler.handle(Future.failedFuture("Not found"));
+        } else {
+
+          Row depositRow = getDepositRes.result().iterator().next();
+
+          transaction.preparedQuery("UPDATE cards SET credits = credits + $1 WHERE id = $2", Tuple.of(depositRow.getNumeric("amount").doubleValue(), depositRow.getUUID("card_id_id")), updateCardRes -> {
+
+            if (updateCardRes.succeeded()) {
+
+              transaction.preparedQuery("UPDATE deposits SET status = $1 WHERE id = $2", Tuple.of("succeeded", depositRow.getUUID("id")), updateDepositRes -> {
+
+                if (updateDepositRes.succeeded()) {
+
+                  transaction.commit(transCommitRes -> {
+                    if (transCommitRes.succeeded()) {
+                      resultHandler.handle(Future.succeededFuture(depositRow.getUUID("id")));
+                    } else {
+                      resultHandler.handle(Future.failedFuture(transCommitRes.cause()));
+                    }
+                  });
+
+                } else {
+                  resultHandler.handle(Future.failedFuture(updateDepositRes.cause()));
+                }
+
+              });
+
+            } else {
+              resultHandler.handle(Future.failedFuture(updateCardRes.cause()));
+            }
+
+          });
+
+        }
+
+      } else {
+        resultHandler.handle(Future.failedFuture(getDepositRes.cause()));
+      }
     });
   }
 

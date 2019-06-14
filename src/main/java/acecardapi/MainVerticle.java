@@ -215,6 +215,9 @@ public class MainVerticle extends AbstractVerticle {
     router.post("/api/webhooks/deposits").handler(BodyHandler.create(false));
     router.post("/api/webhooks/deposits").handler(new StripeSignatureHandler(config().getString("stripe.source_chargeable_secret", "")));
     router.post("/api/webhooks/deposits").handler(paymentHandler::chargeableSourceWebhook);
+    router.post("/api/webhooks/deposits/succeeded").handler(BodyHandler.create(false));
+    router.post("/api/webhooks/deposits/succeeded").handler(new StripeSignatureHandler(config().getString("stripe.charge_succeeded_secret", "")));
+    router.post("/api/webhooks/deposits/succeeded").handler(paymentHandler::succeededChargeWebhook);
 
 
     // HttpServer options
