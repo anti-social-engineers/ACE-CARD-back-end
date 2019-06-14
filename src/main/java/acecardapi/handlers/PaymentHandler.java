@@ -238,6 +238,23 @@ public class PaymentHandler extends AbstractCustomHandler {
     });
   }
 
+  public void failedSourceWebhook(RoutingContext context){
+
+    String source = context.getBodyAsJson().getJsonObject("data").getJsonObject("object").getString("id");
+
+    dbClient.preparedQuery("DELETE FROM deposits WHERE source_id = $1", Tuple.of(source), res -> {
+
+      if(res.succeeded())
+      {
+        raise200(context);
+      }
+      else
+      {
+        raise500(context, res.cause());
+      }
+    });
+  }
+
   private void createStripeCharge(Map<String, Object> params, Handler<AsyncResult<Charge>> resultHandler) {
     try {
       Charge charge = Charge.create(params);
@@ -257,7 +274,6 @@ public class PaymentHandler extends AbstractCustomHandler {
       } else {
         resultHandler.handle(Future.failedFuture(depositRes.cause()));
       }
-
     });
   }
 
