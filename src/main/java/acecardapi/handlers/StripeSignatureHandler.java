@@ -45,7 +45,6 @@ public class StripeSignatureHandler implements Handler<RoutingContext> {
       return;
     }
 
-    System.out.println("Continuing...");
     context.next();
 
   }

@@ -17,10 +17,9 @@ public class JwtValidationHandler implements Handler<RoutingContext> {
 
    redisClient.exists("invalidated:" + context.request().getHeader("Authorization"), res -> {
 
-     if(res.succeeded()){
+     if(res.succeeded()) {
 
-       if(res.result() == 1)
-       {
+       if(res.result() == 1) {
          context.response()
            .setStatusCode(401)
            .putHeader("content-type", "application/json; charset=utf-8")
@@ -33,13 +32,10 @@ public class JwtValidationHandler implements Handler<RoutingContext> {
            .putHeader("content-type", "application/json; charset=utf-8")
            .end();
        }
-       else
-       {
+       else {
          context.next();
        }
-     }
-     else
-     {
+     } else {
        context.next();
      }
    });

@@ -156,19 +156,28 @@ public class MainVerticle extends AbstractVerticle {
       .allowedMethods(allowedMethods));
 
     JWTAuthHandler jwtAuthHandler = JWTAuthHandler.create(jwtProvider);
+
+    //Setup default handlers, order should be: jwtAuthHandler --> BodyHandler --> ANY OTHER HANDLER
     router.route("/api/users/*").handler(jwtAuthHandler);
     router.route("/api/users/*").handler(jwtValidationHandler);
     router.route("/api/account/*").handler(jwtAuthHandler);
     router.route("/api/account/*").handler(jwtValidationHandler);
     router.route("/static/*").handler(jwtAuthHandler);
     router.route("/static/*").handler(jwtValidationHandler);
-    router.route("/api/acecard/*").handler(jwtAuthHandler);
-    router.route("/api/acecard/*").handler(jwtValidationHandler);
+    router.route("/api/acecard").handler(jwtAuthHandler);
+    router.post("/api/acecard").handler(BodyHandler.create()
+      .setUploadsDirectory(config().getString("http.temp_dir", "static/temp/"))
+      .setBodyLimit(config().getInteger("http.max_image_mb", 1) * MB)
+      .setDeleteUploadedFilesOnEnd(true));
+    router.route("/api/acecard").handler(jwtValidationHandler);
     router.route("/api/club/*").handler(jwtAuthHandler);
+    router.route("/api/club/*").handler(BodyHandler.create(false));
     router.route("/api/club/*").handler(jwtValidationHandler);
     router.route("/api/administration/*").handler(jwtAuthHandler);
+    router.post("/api/administration/link").handler(BodyHandler.create(false));
     router.route("/api/administration/*").handler(jwtValidationHandler);
     router.route("/api/deposits/*").handler(jwtAuthHandler);
+    router.post("/api/deposits/create").handler(BodyHandler.create(false));
     router.route("/api/deposits/*").handler(jwtValidationHandler);
     router.route("/api/logout/").handler(jwtAuthHandler);
     router.route("/api/logout/").handler(jwtValidationHandler);
@@ -194,37 +203,27 @@ public class MainVerticle extends AbstractVerticle {
     router.get("/api/account/deposits/:sorting").handler(userHandler::userDeposits);
     router.get("/api/account/deposits/:sorting/:cursor").handler(userHandler::userDeposits);
 
-
     //// Club endpoints ////
-    router.post("/api/club/scan").handler(BodyHandler.create(false));
     router.route("/api/club/scan").handler(new AuthorizationHandler(new String[]{"sysop", "club_employee"}));
     router.post("/api/club/scan").handler(clubHandler::scanCard);
-    router.route("/api/club/payment").handler(BodyHandler.create(false));
     router.route("/api/club/payment").handler(new AuthorizationHandler(new String[]{"club_employee"}));
     router.route("/api/club/payment").handler(new ClubAccessHandler());
     router.post("/api/club/payment").handler(clubHandler::cardPayment);
 
     //// Ace Card ////
-    router.post("/api/acecard").handler(BodyHandler.create()
-      .setUploadsDirectory(config().getString("http.temp_dir", "static/temp/"))
-      .setBodyLimit(config().getInteger("http.max_image_mb", 1) * MB)
-      .setDeleteUploadedFilesOnEnd(true));
     router.post("/api/acecard").handler(cardHandler::requestCard);
 
     //// Serving profile image  ////
     router.route("/static/images/*").handler(new ProfileImageAuthorizationHandler(dbClient));
     router.route("/static/images/*").handler(StaticHandler.create().setWebRoot("static/images"));
 
-
     //// Admin Endpoints ////
     router.route("/api/administration/*").handler(new AuthorizationHandler(new String[]{"sysop"}));
     router.get("/api/administration/openrequests").handler(cardHandler::requestRequestedCards);
-    router.post("/api/administration/link").handler(BodyHandler.create(false));
     router.post("/api/administration/link").handler(cardHandler::linkCardUser);
 
 
     //// Payment Endpoints ////
-    router.post("/api/deposits/create").handler(BodyHandler.create(false));
     router.post("/api/deposits/create").handler(paymentHandler::stripeSource);
 
     //// Payment Webhooks ////
@@ -234,14 +233,9 @@ public class MainVerticle extends AbstractVerticle {
     router.post("/api/webhooks/deposits/succeeded").handler(BodyHandler.create(false));
     router.post("/api/webhooks/deposits/succeeded").handler(new StripeSignatureHandler(config().getString("stripe.charge_succeeded_secret", "")));
     router.post("/api/webhooks/deposits/succeeded").handler(paymentHandler::succeededChargeWebhook);
-
-    //// Payment failed Webhooks ////
     router.post("/api/webhooks/deposits/failed").handler(BodyHandler.create(false));
     router.post("/api/webhooks/deposits/failed").handler(new StripeSignatureHandler(config().getString("stripe.source_failed_secret", "")));
     router.post("/api/webhooks/deposits/failed").handler(paymentHandler::failedSourceWebhook);
-
-
-
 
 
     // HttpServer options
