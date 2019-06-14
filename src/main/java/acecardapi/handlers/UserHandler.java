@@ -187,6 +187,7 @@ public class UserHandler extends AbstractCustomHandler{
                    // Remove the last element from the list if row count > max return size
 
                    raise200(context, paymentsDepositsResponseHandler(rows, jsonArray, "payments"));
+                   connection.close();
 
 
                  } else {
@@ -313,6 +314,7 @@ public class UserHandler extends AbstractCustomHandler{
                   }
 
                   raise200(context, paymentsDepositsResponseHandler(rows, jsonArray, "deposits"));
+                  connection.close();
 
                 } else {
                   raise500(context, depositsRes.cause());
