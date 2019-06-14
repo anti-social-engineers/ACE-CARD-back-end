@@ -211,7 +211,6 @@ public class LoginHandler extends AbstractCustomHandler{
             raise500(context, getConnectionRes.cause());
           }
         });
-        // Check if the user has a verified email:
 
       }
 

@@ -26,6 +26,20 @@ abstract class AbstractCustomHandler {
     this.config = config;
   }
 
+  void raise200(RoutingContext context) {
+
+    context.response()
+      .setStatusCode(200)
+      .putHeader("Cache-Control", "no-store, no-cache")
+      .putHeader("X-Content-Type-Options", "nosniff")
+      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+      .putHeader("X-Download-Options", "noopen")
+      .putHeader("X-XSS-Protection", "1; mode=block")
+      .putHeader("X-FRAME-OPTIONS", "DENY")
+      .putHeader("content-type", "application/json; charset=utf-8")
+      .end();
+  }
+
   void raise200(RoutingContext context, JsonArray jsonArray) {
 
     context.response()
@@ -41,6 +55,34 @@ abstract class AbstractCustomHandler {
   }
 
   void raise200(RoutingContext context, JsonObject jsonObject) {
+
+    context.response()
+      .setStatusCode(200)
+      .putHeader("Cache-Control", "no-store, no-cache")
+      .putHeader("X-Content-Type-Options", "nosniff")
+      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+      .putHeader("X-Download-Options", "noopen")
+      .putHeader("X-XSS-Protection", "1; mode=block")
+      .putHeader("X-FRAME-OPTIONS", "DENY")
+      .putHeader("content-type", "application/json; charset=utf-8")
+      .end(Json.encodePrettily(jsonObject));
+  }
+
+  void raise201(RoutingContext context) {
+
+    context.response()
+      .setStatusCode(200)
+      .putHeader("Cache-Control", "no-store, no-cache")
+      .putHeader("X-Content-Type-Options", "nosniff")
+      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+      .putHeader("X-Download-Options", "noopen")
+      .putHeader("X-XSS-Protection", "1; mode=block")
+      .putHeader("X-FRAME-OPTIONS", "DENY")
+      .putHeader("content-type", "application/json; charset=utf-8")
+      .end();
+  }
+
+  void raise201(RoutingContext context, JsonObject jsonObject) {
 
     context.response()
       .setStatusCode(200)
