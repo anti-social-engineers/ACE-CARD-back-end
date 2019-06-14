@@ -10,10 +10,12 @@ package acecardapi.handlers;
 
 import acecardapi.apierrors.ParameterNotFoundViolation;
 import acecardapi.models.Deposit;
+import com.stripe.exception.StripeException;
 import com.stripe.model.Charge;
 import com.stripe.model.Source;
 import io.reactiverse.pgclient.PgConnection;
 import io.reactiverse.pgclient.PgPool;
+import io.reactiverse.pgclient.PgRowSet;
 import io.reactiverse.pgclient.Tuple;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -165,38 +167,98 @@ public class PaymentHandler extends AbstractCustomHandler {
     });
   }
 
-  public void createStripeCharge(RoutingContext context) {
+  public void chargeableSourceWebhook(RoutingContext context) {
 
-    System.out.println(context.getBodyAsJson());
+    String source = context.getBodyAsJson().getJsonObject("data").getJsonObject("object").getString("id");
+    int amount = context.getBodyAsJson().getJsonObject("data").getJsonObject("object").getInteger("amount");
 
-    context.response().setStatusCode(200).end();
+    dbClient.getConnection(getConnectonRes -> {
 
+      if (getConnectonRes.succeeded()) {
+
+        PgConnection connection = getConnectonRes.result();
+
+        connection.preparedQuery("SELECT id FROM deposits WHERE source_id = $1", Tuple.of(source), depositRes -> {
+
+          if (depositRes.succeeded()) {
+
+            PgRowSet results = depositRes.result();
+
+            if (results.rowCount() <= 0) {
+              raise404(context);
+            } else {
+
+              UUID depositId = results.iterator().next().getUUID("ID");
+
+              processChargeableSourceWebhook(context, connection, source, depositId, amount);
+
+            }
+
+          } else {
+            raise500(context, depositRes.cause());
+            connection.close();
+          }
+
+        });
+
+      } else {
+        raise500(context, getConnectonRes.cause());
+      }
+    });
+  }
+
+  private void processChargeableSourceWebhook(RoutingContext context, PgConnection connection, String source, UUID depositId, int amount) {
+
+
+    Map<String, Object> params = new HashMap<String, Object>();
+    params.put("amount", amount);
+    params.put("currency", "eur");
+    params.put("source", source);
+
+    createStripeCharge(params, stripeChargeRes -> {
+      if (stripeChargeRes.succeeded()) {
+
+        // Charge created, update the Deposit
+        updateDepositStripeCharge(connection, depositId, stripeChargeRes.result().getId(), updateDepositRes -> {
+          if (updateDepositRes.succeeded()) {
+
+            raise201(context);
+            connection.close();
+
+          } else {
+            raise500(context, updateDepositRes.cause());
+            connection.close();
+          }
+        });
+
+      } else {
+        raise500(context, stripeChargeRes.cause());
+        connection.close();
+      }
+    });
+  }
+
+  private void createStripeCharge(Map<String, Object> params, Handler<AsyncResult<Charge>> resultHandler) {
     try {
-      String source = context.getBodyAsJson().getJsonObject("data").getJsonObject("object").getString("id");
-      int amount = context.getBodyAsJson().getJsonObject("data").getJsonObject("object").getInteger("amount");
-
-      Map<String, Object> params = new HashMap<String, Object>();
-      params.put("amount", amount);
-      params.put("currency", "eur");
-      params.put("source", source);
-
       Charge charge = Charge.create(params);
-
-      context.response()
-        .setStatusCode(201)
-        .putHeader("Cache-Control", "no-store, no-cache")
-        .putHeader("X-Content-Type-Options", "nosniff")
-        .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
-        .putHeader("X-Download-Options", "noopen")
-        .putHeader("X-XSS-Protection", "1; mode=block")
-        .putHeader("X-FRAME-OPTIONS", "DENY")
-        .putHeader("content-type", "application/json; charset=utf-8")
-        .end();
-
-    } catch (Exception e) {
-      raise500(context, e);
+      resultHandler.handle(Future.succeededFuture(charge));
+    } catch (StripeException se) {
+      resultHandler.handle(Future.failedFuture(se));
     }
+  }
 
+  private void updateDepositStripeCharge(PgConnection connection, UUID depositId, String chargeId, Handler<AsyncResult<Boolean>> resultHandler) {
+
+    connection.preparedQuery("UPDATE deposits SET charge_id = $1, status = $2 WHERE id = $3", Tuple.of(chargeId, "charge_created", depositId), depositRes -> {
+
+      if (depositRes.succeeded()) {
+        resultHandler.handle(Future.succeededFuture(true));
+
+      } else {
+        resultHandler.handle(Future.failedFuture(depositRes.cause()));
+      }
+
+    });
   }
 
 }

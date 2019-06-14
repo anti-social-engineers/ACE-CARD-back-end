@@ -151,10 +151,6 @@ public class MainVerticle extends AbstractVerticle {
       .allowedHeaders(allowedHeaders)
       .allowedMethods(allowedMethods));
 
-    // Protected apis (All these endpoints require JWT)
-    // TODO: Beautify? - Cookie handler only on TokenHeader?
-    router.route().handler(CookieHandler.create());
-//    router.route().handler(new TokenHeaderHandler());
     JWTAuthHandler jwtAuthHandler = JWTAuthHandler.create(jwtProvider);
     router.route("/api/users/*").handler(jwtAuthHandler);
     router.route("/api/account/*").handler(jwtAuthHandler);
@@ -162,7 +158,6 @@ public class MainVerticle extends AbstractVerticle {
     router.route("/api/acecard/*").handler(jwtAuthHandler);
     router.route("/api/club/*").handler(jwtAuthHandler);
     router.route("/api/administration/*").handler(jwtAuthHandler);
-//    router.route("/api/payments/*").handler(jwtAuthHandler);
     router.route("/api/deposits/*").handler(jwtAuthHandler);
 
     //// Handle register/login endpoints ////
@@ -215,12 +210,11 @@ public class MainVerticle extends AbstractVerticle {
     //// Payment Endpoints ////
     router.post("/api/deposits/create").handler(BodyHandler.create(false));
     router.post("/api/deposits/create").handler(paymentHandler::stripeSource);
-//    router.post("/api/payments/charge").handler(BodyHandler.create(false));
-//    router.post("/api/payments/charge").handler(paymentHandler::createStripeCharge);
 
     //// Paymnet Webhooks ////
     router.post("/api/webhooks/deposits").handler(BodyHandler.create(false));
-    router.post("/api/webhooks/deposits").handler(paymentHandler::createStripeCharge);
+    router.post("/api/webhooks/deposits").handler(new StripeSignatureHandler(config().getString("stripe.source_chargeable_secret", "")));
+    router.post("/api/webhooks/deposits").handler(paymentHandler::chargeableSourceWebhook);
 
 
     // HttpServer options
