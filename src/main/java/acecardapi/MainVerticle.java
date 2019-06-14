@@ -129,6 +129,10 @@ public class MainVerticle extends AbstractVerticle {
     ClubHandler clubHandler = new ClubHandler(dbClient, config(), redisClient, authProvider);
     // ClubHandler
     PaymentHandler paymentHandler = new PaymentHandler(dbClient, config());
+    //LogoutHandler
+    LogoutHandler logoutHandler = new LogoutHandler(dbClient, config(), redisClient);
+    // JwtValidationHandler (Check if JWT has not already been logged out)
+    JwtValidationHandler jwtValidationHandler = new JwtValidationHandler(redisClient);
 
     /*
     Routes
@@ -153,12 +157,21 @@ public class MainVerticle extends AbstractVerticle {
 
     JWTAuthHandler jwtAuthHandler = JWTAuthHandler.create(jwtProvider);
     router.route("/api/users/*").handler(jwtAuthHandler);
+    router.route("/api/users/*").handler(jwtValidationHandler);
     router.route("/api/account/*").handler(jwtAuthHandler);
+    router.route("/api/account/*").handler(jwtValidationHandler);
     router.route("/static/*").handler(jwtAuthHandler);
+    router.route("/static/*").handler(jwtValidationHandler);
     router.route("/api/acecard/*").handler(jwtAuthHandler);
+    router.route("/api/acecard/*").handler(jwtValidationHandler);
     router.route("/api/club/*").handler(jwtAuthHandler);
+    router.route("/api/club/*").handler(jwtValidationHandler);
     router.route("/api/administration/*").handler(jwtAuthHandler);
+    router.route("/api/administration/*").handler(jwtValidationHandler);
     router.route("/api/deposits/*").handler(jwtAuthHandler);
+    router.route("/api/deposits/*").handler(jwtValidationHandler);
+    router.route("/api/logout/").handler(jwtAuthHandler);
+    router.route("/api/logout/").handler(jwtValidationHandler);
 
     //// Handle register/login endpoints ////
     router.route("/api/register").handler(BodyHandler.create(false));
@@ -166,6 +179,9 @@ public class MainVerticle extends AbstractVerticle {
     router.post("/api/register").handler(registrationHandler::registerUser);
     router.post("/api/login").handler(loginHandler::login);
     router.get("/api/activate/:activationkey").handler(activationHandler::activateUser);
+
+    //// logout endpoints ////
+    router.post("/api/logout").handler(logoutHandler::logout);
 
     //// User Management ////
     router.route("/api/users").handler(new AuthorizationHandler(new String[]{"sysop"}));
@@ -211,13 +227,21 @@ public class MainVerticle extends AbstractVerticle {
     router.post("/api/deposits/create").handler(BodyHandler.create(false));
     router.post("/api/deposits/create").handler(paymentHandler::stripeSource);
 
-    //// Paymnet Webhooks ////
+    //// Payment Webhooks ////
     router.post("/api/webhooks/deposits").handler(BodyHandler.create(false));
     router.post("/api/webhooks/deposits").handler(new StripeSignatureHandler(config().getString("stripe.source_chargeable_secret", "")));
     router.post("/api/webhooks/deposits").handler(paymentHandler::chargeableSourceWebhook);
     router.post("/api/webhooks/deposits/succeeded").handler(BodyHandler.create(false));
     router.post("/api/webhooks/deposits/succeeded").handler(new StripeSignatureHandler(config().getString("stripe.charge_succeeded_secret", "")));
     router.post("/api/webhooks/deposits/succeeded").handler(paymentHandler::succeededChargeWebhook);
+
+    //// Payment failed Webhooks ////
+    router.post("/api/webhooks/deposits/failed").handler(BodyHandler.create(false));
+    router.post("/api/webhooks/deposits/failed").handler(new StripeSignatureHandler(config().getString("stripe.source_failed_secret", "")));
+    router.post("/api/webhooks/deposits/failed").handler(paymentHandler::failedSourceWebhook);
+
+
+
 
 
     // HttpServer options
