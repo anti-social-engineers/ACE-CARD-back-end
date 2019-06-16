@@ -68,6 +68,11 @@ public class CardHandler extends AbstractCustomHandler{
     this.authProvider = authProvider;
   }
 
+  /**
+   Function which handles a request for a new ACE-card
+   @param context contains information about the request
+   @return void
+   */
   public void requestCard(RoutingContext context) {
 
     MultiMap attributes = context.request().formAttributes();
@@ -221,6 +226,15 @@ public class CardHandler extends AbstractCustomHandler{
     });
   }
 
+  /**
+   Function which further processes a request for a new ACE-card
+   @param context contains information about the request
+   @param connection connection to the db
+   @param addressId the uuid of the address
+   @param card card object
+   @param profileImage image object
+   @return void
+   */
   private void processRequestCard(RoutingContext context, PgConnection connection, UUID addressId, Card card,
                                   FileUpload profileImage) {
 
@@ -267,6 +281,15 @@ public class CardHandler extends AbstractCustomHandler{
     });
   }
 
+  /**
+   Function which updates the user object
+   @param context contains information about the request
+   @param connection connection to the db
+   @param addressId the uuid of the address
+   @param file image object
+   @param resultHandler handles further async processing
+   @return void
+   */
   private void updateUserEntry(RoutingContext context, PgConnection connection, UUID addressId, FileUpload file, Handler<AsyncResult<Boolean>> resultHandler) {
     // Transaction to update the user and create a card
 
@@ -288,7 +311,13 @@ public class CardHandler extends AbstractCustomHandler{
     });
   }
 
-
+  /**
+   Insert a new card object into the db
+   @param connection connection to the db
+   @param card card object
+   @param resultHandler handles further async processing
+   @return void
+   */
   private void createCardEntry(PgConnection connection, Card card, Handler<AsyncResult<Boolean>> resultHandler) {
     connection.preparedQuery("INSERT INTO cards (id, requested_at, user_id_id) VALUES ($1, $2, $3)", card.toTuple(), res -> {
       if(res.succeeded()) {
@@ -299,6 +328,12 @@ public class CardHandler extends AbstractCustomHandler{
     });
   }
 
+  /**
+   Function which checks
+   @param uploads all the uploaded files
+   @param resultHandler handles further async processing
+   @return void
+   */
   private void checkIfProfileImagePresentCardRequest(Set<FileUpload> uploads, Handler<AsyncResult<FileUpload>> resultHandler) {
     // Check if the required file is present.
 
@@ -319,6 +354,12 @@ public class CardHandler extends AbstractCustomHandler{
 
   }
 
+  /**
+   Function which checks if all provided attributes are valid
+   @param attributes all the provided attributes
+   @param resultHandler handles further async processing
+   @return void
+   */
   private void checkIfStringsValid(MultiMap attributes, Handler<AsyncResult<String>> resultHandler) {
 
     boolean failure = false;
@@ -343,6 +384,12 @@ public class CardHandler extends AbstractCustomHandler{
     }
   }
 
+  /**
+   Function which checks
+   @param uploads all the uploaded files
+   @param resultHandler handles further async processing
+   @return void
+   */
   private void streetNumberIsInt(String number, Handler<AsyncResult<Integer>> resultHandler) {
     try {
       int address_number  = Integer.parseInt(number);
