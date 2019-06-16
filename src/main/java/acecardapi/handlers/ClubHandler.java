@@ -246,8 +246,10 @@ public class ClubHandler extends AbstractCustomHandler{
       if (getConnectionRes.succeeded()) {
         PgConnection connection = getConnectionRes.result();
 
+        PgTransaction transaction = connection.begin();
+
         // Retrieve card data
-        connection.preparedQuery("SELECT id, credits, pin, pin_salt, is_blocked FROM cards WHERE card_code=$1", Tuple.of(decryptedCardCode), cardRes -> {
+        transaction.preparedQuery("SELECT id, credits, pin, pin_salt, is_blocked FROM cards WHERE card_code=$1", Tuple.of(decryptedCardCode), cardRes -> {
 
           if (cardRes.succeeded()) {
 
@@ -269,6 +271,7 @@ public class ClubHandler extends AbstractCustomHandler{
               } else if (!checkPIN(requestBody.getString("card_pin"), row.getString("pin_salt"), row.getString("pin"))) {
                 AuthorisationViolation error = new AuthorisationViolation("PIN is invalid.");
                 raise401(context, error);
+                connection.close();
 
                 addPINAttempt(attempts, attemptsCode);
 
@@ -280,7 +283,7 @@ public class ClubHandler extends AbstractCustomHandler{
 
                 Payment payment = new Payment(requestBody.getDouble("amount"), row.getUUID("id"), UUID.fromString(requestBody.getString("club_id")));
 
-                processCardPaymentTransaction(connection, row.getUUID("id"), row.getNumeric("credits").doubleValue() - requestBody.getDouble("amount"), payment, transactionRes -> {
+                processCardPaymentTransaction(transaction, row.getUUID("id"), row.getNumeric("credits").doubleValue() - requestBody.getDouble("amount"), payment, transactionRes -> {
 
                   if (transactionRes.succeeded()) {
 
@@ -336,16 +339,14 @@ public class ClubHandler extends AbstractCustomHandler{
   // TODO: FIX RACE CONDITIONS REEEEEEEEE
   /**
    Function which starts a transaction for inserting the payment
-   @param connection connection to the db
+   @param transaction the current transaction
    @param cardId uuid of the card
    @param newCreditLevel the new level of credits
    @param payment a payment object
    @param resultHandler handler for async processing
    @return void
    */
-  private void processCardPaymentTransaction(PgConnection connection, UUID cardId, Double newCreditLevel, Payment payment, Handler<AsyncResult<Double>> resultHandler) {
-
-    PgTransaction transaction = connection.begin();
+  private void processCardPaymentTransaction(PgTransaction transaction, UUID cardId, Double newCreditLevel, Payment payment, Handler<AsyncResult<Double>> resultHandler) {
 
     transaction.preparedQuery("UPDATE cards SET credits=$1 WHERE id=$2", Tuple.of(Numeric.create(newCreditLevel), cardId), cardRes -> {
       if (cardRes.succeeded()) {

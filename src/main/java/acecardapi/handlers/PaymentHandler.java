@@ -29,7 +29,6 @@ import static acecardapi.utils.RequestUtilities.attributesCheckJsonObject;
 public class PaymentHandler extends AbstractCustomHandler {
 
   private String[] stripeSourceAttributes = new String[]{"amount", "return_url"};
-  private String[] stripeChargeAttributes = new String[]{"amount", "return_url"};
 
   public PaymentHandler(PgPool dbClient, JsonObject config) {
     super(dbClient, config);
