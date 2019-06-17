@@ -19,27 +19,34 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.redis.RedisClient;
 
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import static acecardapi.utils.RedisUtils.realTimeRedisLPUSH;
 import static acecardapi.utils.RequestUtilities.attributesCheckJsonObject;
 
-public class PaymentHandler extends AbstractCustomHandler {
+public class DepositHandler extends AbstractCustomHandler {
 
   private String[] stripeSourceAttributes = new String[]{"amount", "return_url"};
 
-  public PaymentHandler(PgPool dbClient, JsonObject config) {
+  private RedisClient realTimeRedisQueue;
+
+  public DepositHandler(PgPool dbClient, JsonObject config, RedisClient realTimeRedisQueue) {
     super(dbClient, config);
+    this.realTimeRedisQueue = realTimeRedisQueue;
   }
 
   public void stripeSource(RoutingContext context) {
+
     attributesCheckJsonObject(context.getBodyAsJson(), stripeSourceAttributes, attributeRes -> {
       if (attributeRes.succeeded()) {
 
         // Convert from cents to currency
-        double amount = context.getBodyAsJson().getInteger("amount") / 100;
+        double amount = context.getBodyAsJson().getDouble("amount") / 100;
 
         String return_url = context.getBodyAsJson().getString("return_url");
 
@@ -205,7 +212,6 @@ public class PaymentHandler extends AbstractCustomHandler {
 
   private void processChargeableSourceWebhook(RoutingContext context, PgConnection connection, String source, UUID depositId, int amount) {
 
-
     Map<String, Object> params = new HashMap<String, Object>();
     params.put("amount", amount);
     params.put("currency", "eur");
@@ -285,9 +291,32 @@ public class PaymentHandler extends AbstractCustomHandler {
         succeededChargeWebhookTransaction(connection, source, res -> {
 
           if (res.succeeded()) {
-            //TODO: CHANGE TO 200
-            raise201(context);
-            connection.close();
+            raise200(context);
+
+            connection.preparedQuery("SELECT card_id_id FROM deposits WHERE source_id = $1", Tuple.of(source), cardIdRes -> {
+
+              if (cardIdRes.succeeded()) {
+
+                connection.preparedQuery("SELECT user_id_id FROM cards WHERE id = $1", Tuple.of(cardIdRes.result().iterator().next().getUUID("card_id_id")), userIdRes -> {
+                 if (userIdRes.succeeded()) {
+
+                   connection.close();
+
+                   // Create a notification in the real time redis queue
+                   realTimeRedisLPUSH(realTimeRedisQueue, userIdRes.result().iterator().next().getUUID("user_id_id"), "deposit", res.result(), OffsetDateTime.now(), redisRes -> {
+                     System.out.println(redisRes.result());
+                   });
+
+                 } else {
+                   connection.close();
+                 }
+               });
+              } else {
+                connection.close();
+              }
+
+            });
+
           } else {
             raise500(context, res.cause());
             connection.close();
@@ -302,7 +331,7 @@ public class PaymentHandler extends AbstractCustomHandler {
 
   }
 
-  private void succeededChargeWebhookTransaction(PgConnection connection, String source, Handler<AsyncResult<UUID>> resultHandler) {
+  private void succeededChargeWebhookTransaction(PgConnection connection, String source, Handler<AsyncResult<Double>> resultHandler) {
 
     PgTransaction transaction = connection.begin();
 
@@ -325,7 +354,7 @@ public class PaymentHandler extends AbstractCustomHandler {
 
                   transaction.commit(transCommitRes -> {
                     if (transCommitRes.succeeded()) {
-                      resultHandler.handle(Future.succeededFuture(depositRow.getUUID("id")));
+                      resultHandler.handle(Future.succeededFuture(depositRow.getNumeric("amount").doubleValue()));
                     } else {
                       resultHandler.handle(Future.failedFuture(transCommitRes.cause()));
                     }
@@ -350,5 +379,4 @@ public class PaymentHandler extends AbstractCustomHandler {
       }
     });
   }
-
 }

@@ -336,7 +336,6 @@ public class ClubHandler extends AbstractCustomHandler{
     return hashedPin.equals(hashedInputPIN);
   }
 
-  // TODO: FIX RACE CONDITIONS REEEEEEEEE
   /**
    Function which starts a transaction for inserting the payment
    @param transaction the current transaction
