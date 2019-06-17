@@ -10,6 +10,7 @@ package acecardapi.handlers;
 
 import acecardapi.apierrors.ParameterNotFoundViolation;
 import acecardapi.apierrors.PathParameterViolation;
+import acecardapi.utils.RedisUtils;
 import io.reactiverse.pgclient.PgPool;
 import io.reactiverse.pgclient.PgRowSet;
 import io.reactiverse.pgclient.Tuple;
@@ -21,16 +22,15 @@ import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.redis.RedisClient;
+import io.vertx.redis.client.RedisAPI;
 
+import java.util.Arrays;
 import java.util.UUID;
 
 public class ActivationHandler extends AbstractCustomHandler {
 
-  private RedisClient redisClient;
-
-  public ActivationHandler(PgPool dbClient, JsonObject config, RedisClient redisClient) {
+  public ActivationHandler(PgPool dbClient, JsonObject config) {
     super(dbClient, config);
-    this.redisClient = redisClient;
   }
 
 
@@ -53,31 +53,30 @@ public class ActivationHandler extends AbstractCustomHandler {
     } else {
 
 
+      RedisAPI redisClient = RedisAPI.api(RedisUtils.backEndRedis);
+
       redisClient.get(activationKey, res -> {
         if (res.succeeded()) {
 
-          String stringId = res.result();
+          String stringId = null;
+          if (res.result() != null) {
+            stringId = res.result().toString();
+          }
 
           if (stringId == null) {
-            context.response()
-              .setStatusCode(404)
-              .putHeader("content-type", "application/json; charset=utf-8")
-              .end(Json.encodePrettily(new ParameterNotFoundViolation("activationkey").errorJson()));
+            raise404(context, new ParameterNotFoundViolation("activationkey"));
           } else {
 
-            UUID userId = UUID.fromString(res.result());
+            UUID userId = UUID.fromString(stringId);
 
             activateDatabaseUser(userId, updateResult -> {
               if (updateResult.succeeded()) {
 
                 // Account updated to have activated email
-                context.response()
-                  .setStatusCode(200)
-                  .putHeader("content-type", "application/json; charset=utf-8")
-                  .end();
+                raise200(context);
 
                 // Delete the key afterwards
-                redisClient.unlink(activationKey, unlinkRes -> {
+                redisClient.del(Arrays.asList(activationKey),unlinkRes -> {
                   if (unlinkRes.succeeded()) {
                     System.out.println("Unlinking success");
                   } else {
@@ -86,28 +85,15 @@ public class ActivationHandler extends AbstractCustomHandler {
                 });
 
               } else {
-                context.response()
-                  .setStatusCode(500)
-                  .putHeader("content-type", "application/json; charset=utf-8")
-                  .end();
-
-                if (config.getBoolean("debug.enabled", false))
-                  Sentry.capture(updateResult.cause());
+                raise500(context, updateResult.cause());
               }
             });
           }
 
         } else {
 
-          // Redis down
-
-          context.response()
-            .setStatusCode(500)
-            .putHeader("content-type", "application/json; charset=utf-8")
-            .end();
-
-          if (config.getBoolean("debug.enabled", false))
-            Sentry.capture(res.cause());
+          // Redis error
+          raise500(context, res.cause());
         }
       });
     }
