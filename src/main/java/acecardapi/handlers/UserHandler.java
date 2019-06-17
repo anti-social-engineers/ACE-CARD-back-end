@@ -48,11 +48,11 @@ public class UserHandler extends AbstractCustomHandler{
 
               // User exists, but does not yet have an ace card
 
-              connection.preparedQuery("SELECT email FROM users WHERE id=$1", Tuple.of(userId), res2 -> {
+              connection.preparedQuery("SELECT email, role FROM users WHERE id=$1", Tuple.of(userId), res2 -> {
 
                 if (res2.succeeded()) {
                   Row row2 = res2.result().iterator().next();
-                  getUserDataNoCard(context, row2.getString("email"));
+                  getUserDataNoCard(context, row2.getString("email"), row2.getString("role"));
                   connection.close();
                 } else {
                   raise500(context, res2.cause());
@@ -92,8 +92,8 @@ public class UserHandler extends AbstractCustomHandler{
 
   }
 
-  private void getUserDataNoCard(RoutingContext context, String email) {
-    Account acc = new Account(email, false);
+  private void getUserDataNoCard(RoutingContext context, String email, String role) {
+    Account acc = new Account(email, false, role);
 
     raise200(context, acc.toJson());
   }

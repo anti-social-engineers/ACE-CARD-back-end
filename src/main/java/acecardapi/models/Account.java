@@ -48,9 +48,10 @@ public class Account {
   }
 
 
-  public Account(String email, Boolean has_card) {
+  public Account(String email, Boolean has_card, String role) {
     this.email = email;
     this.has_card = has_card;
+    this.role = role;
   }
 
   public JsonObject toJson() {
@@ -73,6 +74,7 @@ public class Account {
     } else {
       return new JsonObject()
         .put("mail", Encode.forHtml(email))
+        .put("role", role)
         .put("has_card", has_card);
     }
   }
