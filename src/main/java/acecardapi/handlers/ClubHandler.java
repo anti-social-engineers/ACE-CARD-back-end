@@ -36,17 +36,13 @@ import static acecardapi.utils.RequestUtilities.attributesCheckJsonObject;
 
 public class ClubHandler extends AbstractCustomHandler{
 
-//  private RedisClient redisClient;
-  private RedisClient realTimeRedisClient;
   private ReactiveAuth authProvider;
 
   private String[] requiredAttributesProcessCardPayment = new String[]{"club_id", "card_code", "card_pin", "amount"};
 
-  public ClubHandler(PgPool dbClient, JsonObject config, ReactiveAuth authProvider, RedisClient realTimeRedisClient) {
+  public ClubHandler(PgPool dbClient, JsonObject config, ReactiveAuth authProvider) {
     super(dbClient, config);
-//    this.redisClient = redisClient;
     this.authProvider = authProvider;
-    this.realTimeRedisClient = realTimeRedisClient;
   }
 
   /**
@@ -287,6 +283,8 @@ public class ClubHandler extends AbstractCustomHandler{
                     raise201(context, payment.toJsonObject(false));
 
                     connection.close();
+
+                    RedisAPI realTimeRedisClient = RedisAPI.api(RedisUtils.frontEndRedis);
 
                     realTimeRedisLPUSH(realTimeRedisClient, row.getUUID("user_id_id"), "transaction", requestBody.getDouble("amount"), row.getNumeric("credits").doubleValue() - requestBody.getDouble("amount"), OffsetDateTime.now(), redisRes -> {
                       System.out.println(redisRes.result());

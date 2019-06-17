@@ -32,14 +32,13 @@ import io.vertx.ext.mail.MailConfig;
 import io.vertx.ext.mail.StartTLSOptions;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.*;
-import io.vertx.redis.RedisClient;
-import io.vertx.redis.RedisOptions;
 import io.vertx.redis.client.Redis;
+import io.vertx.redis.client.RedisOptions;
 
 import java.util.HashSet;
 import java.util.Set;
 
-import static acecardapi.utils.RedisUtils.attemptReconnectBackendRedis;
+import static acecardapi.utils.RedisUtils.attemptReconnectRedis;
 
 public class MainVerticle extends AbstractVerticle {
 
@@ -104,10 +103,12 @@ public class MainVerticle extends AbstractVerticle {
     /*
     Setup Redis for backend
      */
-    Redis.createClient(vertx, new io.vertx.redis.client.RedisOptions()).connect(connectRes -> {
+
+    //TODO SETTINGS
+    Redis.createClient(vertx, new RedisOptions()).connect(connectRes -> {
       if (connectRes.succeeded()) {
         RedisUtils.backEndRedis = connectRes.result();
-        RedisUtils.backEndRedis.exceptionHandler(e -> attemptReconnectBackendRedis(vertx, 0, new io.vertx.redis.client.RedisOptions()));
+        RedisUtils.backEndRedis.exceptionHandler(e -> attemptReconnectRedis(vertx, 0, new RedisOptions(), true));
       } else {
         System.out.println("!!! Redis is down !!!");
       }
@@ -116,11 +117,17 @@ public class MainVerticle extends AbstractVerticle {
     /*
     Setup Redis for frontend realtime notifcations
      */
-    RedisClient realTimeRedisQueue = RedisClient.create(vertx,
-      new RedisOptions()
-        .setHost(config().getString("realtime.redis.host", "127.0.0.1"))
-        .setAuth(config().getString("realtime.redis.auth", null))
-    );
+    RedisOptions frontEndRedisOptions = new RedisOptions()
+      .setEndpoint(SocketAddress.inetSocketAddress(config().getInteger("realtime.redis.port", 6379), config().getString("realtime.redis.host", "127.0.0.1")))
+      .setPassword(config().getString("realtime.auth", null));
+    Redis.createClient(vertx, frontEndRedisOptions).connect(connectRes -> {
+      if (connectRes.succeeded()) {
+        RedisUtils.frontEndRedis = connectRes.result();
+        RedisUtils.frontEndRedis.exceptionHandler(e -> attemptReconnectRedis(vertx, 0, frontEndRedisOptions, false));
+      } else {
+        System.out.println("!!! [FRONTEND] Redis is down !!!");
+      }
+    });
 
     /*
     Setup JWT
@@ -147,9 +154,9 @@ public class MainVerticle extends AbstractVerticle {
     // CardHandler
     CardHandler cardHandler = new CardHandler(dbClient, config(), authProvider);
     // ClubHandler
-    ClubHandler clubHandler = new ClubHandler(dbClient, config(), authProvider, realTimeRedisQueue);
+    ClubHandler clubHandler = new ClubHandler(dbClient, config(), authProvider);
     // ClubHandler
-//    DepositHandler depositHandler = new DepositHandler(dbClient, config(), realTimeRedisQueue);
+    DepositHandler depositHandler = new DepositHandler(dbClient, config());
     //LogoutHandler
     LogoutHandler logoutHandler = new LogoutHandler(dbClient, config());
     // JwtValidationHandler (Check if JWT has not already been logged out)
@@ -245,18 +252,18 @@ public class MainVerticle extends AbstractVerticle {
 
 
     //// Payment Endpoints ////
-//    router.post("/api/deposits/create").handler(depositHandler::stripeSource);
-//
-//    //// Payment Webhooks ////
-//    router.post("/api/webhooks/deposits").handler(BodyHandler.create(false));
-//    router.post("/api/webhooks/deposits").handler(new StripeSignatureHandler(config().getString("stripe.source_chargeable_secret", "")));
-//    router.post("/api/webhooks/deposits").handler(depositHandler::chargeableSourceWebhook);
-//    router.post("/api/webhooks/deposits/succeeded").handler(BodyHandler.create(false));
-//    router.post("/api/webhooks/deposits/succeeded").handler(new StripeSignatureHandler(config().getString("stripe.charge_succeeded_secret", "")));
-//    router.post("/api/webhooks/deposits/succeeded").handler(depositHandler::succeededChargeWebhook);
-//    router.post("/api/webhooks/deposits/failed").handler(BodyHandler.create(false));
-//    router.post("/api/webhooks/deposits/failed").handler(new StripeSignatureHandler(config().getString("stripe.source_failed_secret", "")));
-//    router.post("/api/webhooks/deposits/failed").handler(depositHandler::failedSourceWebhook);
+    router.post("/api/deposits/create").handler(depositHandler::stripeSource);
+
+    //// Payment Webhooks ////
+    router.post("/api/webhooks/deposits").handler(BodyHandler.create(false));
+    router.post("/api/webhooks/deposits").handler(new StripeSignatureHandler(config().getString("stripe.source_chargeable_secret", "")));
+    router.post("/api/webhooks/deposits").handler(depositHandler::chargeableSourceWebhook);
+    router.post("/api/webhooks/deposits/succeeded").handler(BodyHandler.create(false));
+    router.post("/api/webhooks/deposits/succeeded").handler(new StripeSignatureHandler(config().getString("stripe.charge_succeeded_secret", "")));
+    router.post("/api/webhooks/deposits/succeeded").handler(depositHandler::succeededChargeWebhook);
+    router.post("/api/webhooks/deposits/failed").handler(BodyHandler.create(false));
+    router.post("/api/webhooks/deposits/failed").handler(new StripeSignatureHandler(config().getString("stripe.source_failed_secret", "")));
+    router.post("/api/webhooks/deposits/failed").handler(depositHandler::failedSourceWebhook);
 
 
     // HttpServer options

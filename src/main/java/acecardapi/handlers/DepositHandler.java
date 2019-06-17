@@ -10,6 +10,7 @@ package acecardapi.handlers;
 
 import acecardapi.apierrors.ParameterNotFoundViolation;
 import acecardapi.models.Deposit;
+import acecardapi.utils.RedisUtils;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Charge;
 import com.stripe.model.Source;
@@ -20,6 +21,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.redis.RedisClient;
+import io.vertx.redis.client.RedisAPI;
 
 import java.time.OffsetDateTime;
 import java.util.HashMap;
@@ -33,11 +35,8 @@ public class DepositHandler extends AbstractCustomHandler {
 
   private String[] stripeSourceAttributes = new String[]{"amount", "return_url"};
 
-  private RedisClient realTimeRedisQueue;
-
-  public DepositHandler(PgPool dbClient, JsonObject config, RedisClient realTimeRedisQueue) {
+  public DepositHandler(PgPool dbClient, JsonObject config) {
     super(dbClient, config);
-    this.realTimeRedisQueue = realTimeRedisQueue;
   }
 
   public void stripeSource(RoutingContext context) {
@@ -310,8 +309,10 @@ public class DepositHandler extends AbstractCustomHandler {
 
                    connection.close();
 
+                   RedisAPI realTimeRedisClient = RedisAPI.api(RedisUtils.frontEndRedis);
+
                    // Create a notification in the real time redis queue
-                   realTimeRedisLPUSH(realTimeRedisQueue, userId, "deposit", dAmount, newAmount,  OffsetDateTime.now(), redisRes -> {
+                   realTimeRedisLPUSH(realTimeRedisClient, userId, "deposit", dAmount, newAmount,  OffsetDateTime.now(), redisRes -> {
                      System.out.println(redisRes.result());
                    });
 
