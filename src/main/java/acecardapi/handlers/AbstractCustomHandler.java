@@ -71,7 +71,7 @@ abstract class AbstractCustomHandler {
   void raise201(RoutingContext context) {
 
     context.response()
-      .setStatusCode(200)
+      .setStatusCode(201)
       .putHeader("Cache-Control", "no-store, no-cache")
       .putHeader("X-Content-Type-Options", "nosniff")
       .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
@@ -85,7 +85,7 @@ abstract class AbstractCustomHandler {
   void raise201(RoutingContext context, JsonObject jsonObject) {
 
     context.response()
-      .setStatusCode(200)
+      .setStatusCode(201)
       .putHeader("Cache-Control", "no-store, no-cache")
       .putHeader("X-Content-Type-Options", "nosniff")
       .putHeader("Strict-Transport-Security", "max-age=" + 15768000)

@@ -32,6 +32,7 @@ Format:
   "db.user" : "",
   "db.pass" : "",
   "db.maxc" : ,
+  "db.idle_timeout" ,
   "jwt.publickey" : "",
   "jwt.exptime" : ,
   "redis.pass" : "",
@@ -48,5 +49,7 @@ Format:
   "card.max_tries" :,
   "card.failed_attempts_expiration" :,
   "queries.max_return_size" :,
+  "realtime.redis.host": "",
+  "realtime.redis.auth": ""
 }
 

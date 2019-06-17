@@ -71,6 +71,7 @@ public class MainVerticle extends AbstractVerticle {
       .setUser(config().getString("db.user", "acecard"))
       .setPassword(config().getString("db.pass", "acecard"))
       .setMaxSize(config().getInteger("db.maxc", 1))
+      .setIdleTimeout(config().getInteger("db.idle_timeout", 0))
       .setTcpKeepAlive(true);
 
     // Create the pooled client
@@ -96,10 +97,19 @@ public class MainVerticle extends AbstractVerticle {
 
 
     /*
-    Setup Redis
+    Setup Redis for backend
      */
     RedisClient redisClient = RedisClient.create(vertx,
       new RedisOptions().setHost(config().getString("redis.host", "127.0.0.1")));
+
+    /*
+    Setup Redis for frontend realtime notifcations
+     */
+    RedisClient realTimeRedisQueue = RedisClient.create(vertx,
+      new RedisOptions()
+        .setHost(config().getString("realtime.redis.host", "127.0.0.1"))
+        .setAuth(config().getString("realtime.redis.auth", null))
+    );
 
     /*
     Setup JWT
@@ -126,9 +136,9 @@ public class MainVerticle extends AbstractVerticle {
     // CardHandler
     CardHandler cardHandler = new CardHandler(dbClient, config(), authProvider);
     // ClubHandler
-    ClubHandler clubHandler = new ClubHandler(dbClient, config(), redisClient, authProvider);
+    ClubHandler clubHandler = new ClubHandler(dbClient, config(), redisClient, authProvider, realTimeRedisQueue);
     // ClubHandler
-    PaymentHandler paymentHandler = new PaymentHandler(dbClient, config());
+    DepositHandler depositHandler = new DepositHandler(dbClient, config(), realTimeRedisQueue);
     //LogoutHandler
     LogoutHandler logoutHandler = new LogoutHandler(dbClient, config(), redisClient);
     // JwtValidationHandler (Check if JWT has not already been logged out)
@@ -224,18 +234,18 @@ public class MainVerticle extends AbstractVerticle {
 
 
     //// Payment Endpoints ////
-    router.post("/api/deposits/create").handler(paymentHandler::stripeSource);
+    router.post("/api/deposits/create").handler(depositHandler::stripeSource);
 
     //// Payment Webhooks ////
     router.post("/api/webhooks/deposits").handler(BodyHandler.create(false));
     router.post("/api/webhooks/deposits").handler(new StripeSignatureHandler(config().getString("stripe.source_chargeable_secret", "")));
-    router.post("/api/webhooks/deposits").handler(paymentHandler::chargeableSourceWebhook);
+    router.post("/api/webhooks/deposits").handler(depositHandler::chargeableSourceWebhook);
     router.post("/api/webhooks/deposits/succeeded").handler(BodyHandler.create(false));
     router.post("/api/webhooks/deposits/succeeded").handler(new StripeSignatureHandler(config().getString("stripe.charge_succeeded_secret", "")));
-    router.post("/api/webhooks/deposits/succeeded").handler(paymentHandler::succeededChargeWebhook);
+    router.post("/api/webhooks/deposits/succeeded").handler(depositHandler::succeededChargeWebhook);
     router.post("/api/webhooks/deposits/failed").handler(BodyHandler.create(false));
     router.post("/api/webhooks/deposits/failed").handler(new StripeSignatureHandler(config().getString("stripe.source_failed_secret", "")));
-    router.post("/api/webhooks/deposits/failed").handler(paymentHandler::failedSourceWebhook);
+    router.post("/api/webhooks/deposits/failed").handler(depositHandler::failedSourceWebhook);
 
 
     // HttpServer options
