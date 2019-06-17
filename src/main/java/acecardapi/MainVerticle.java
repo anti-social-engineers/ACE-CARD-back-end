@@ -12,6 +12,7 @@ import acecardapi.auth.IReactiveAuth;
 import acecardapi.auth.PBKDF2Strategy;
 import acecardapi.auth.ReactiveAuth;
 import acecardapi.handlers.*;
+import acecardapi.utils.RedisUtils;
 import com.stripe.Stripe;
 import io.reactiverse.pgclient.PgClient;
 import io.reactiverse.pgclient.PgPool;
@@ -22,6 +23,7 @@ import io.vertx.core.Future;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.net.PemKeyCertOptions;
+import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.auth.PubSecKeyOptions;
 import io.vertx.ext.auth.jwt.JWTAuth;
 import io.vertx.ext.auth.jwt.JWTAuthOptions;
@@ -32,9 +34,12 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.*;
 import io.vertx.redis.RedisClient;
 import io.vertx.redis.RedisOptions;
+import io.vertx.redis.client.Redis;
 
 import java.util.HashSet;
 import java.util.Set;
+
+import static acecardapi.utils.RedisUtils.attemptReconnectBackendRedis;
 
 public class MainVerticle extends AbstractVerticle {
 
@@ -99,8 +104,14 @@ public class MainVerticle extends AbstractVerticle {
     /*
     Setup Redis for backend
      */
-    RedisClient redisClient = RedisClient.create(vertx,
-      new RedisOptions().setHost(config().getString("redis.host", "127.0.0.1")));
+    Redis.createClient(vertx, new io.vertx.redis.client.RedisOptions()).connect(connectRes -> {
+      if (connectRes.succeeded()) {
+        RedisUtils.backEndRedis = connectRes.result();
+        RedisUtils.backEndRedis.exceptionHandler(e -> attemptReconnectBackendRedis(vertx, 0, new io.vertx.redis.client.RedisOptions()));
+      } else {
+        System.out.println("!!! Redis is down !!!");
+      }
+    });
 
     /*
     Setup Redis for frontend realtime notifcations
@@ -128,21 +139,21 @@ public class MainVerticle extends AbstractVerticle {
     // UserHandler
     UserHandler userHandler = new UserHandler(dbClient,config());
     // RegistrationHandler
-    RegistrationHandler registrationHandler = new RegistrationHandler(dbClient, config(), authProvider, redisClient, mailClient);
+    RegistrationHandler registrationHandler = new RegistrationHandler(dbClient, config(), authProvider, mailClient);
     // LoginHandler
     LoginHandler loginHandler = new LoginHandler(dbClient, config(), authProvider, jwtProvider);
-    // ActivationHandler
-    ActivationHandler activationHandler = new ActivationHandler(dbClient, config(), redisClient);
+//    // ActivationHandler
+//    ActivationHandler activationHandler = new ActivationHandler(dbClient, config(), redisClient);
     // CardHandler
     CardHandler cardHandler = new CardHandler(dbClient, config(), authProvider);
     // ClubHandler
-    ClubHandler clubHandler = new ClubHandler(dbClient, config(), redisClient, authProvider, realTimeRedisQueue);
+    ClubHandler clubHandler = new ClubHandler(dbClient, config(), authProvider, realTimeRedisQueue);
     // ClubHandler
-    DepositHandler depositHandler = new DepositHandler(dbClient, config(), realTimeRedisQueue);
-    //LogoutHandler
-    LogoutHandler logoutHandler = new LogoutHandler(dbClient, config(), redisClient);
-    // JwtValidationHandler (Check if JWT has not already been logged out)
-    JwtValidationHandler jwtValidationHandler = new JwtValidationHandler(redisClient);
+//    DepositHandler depositHandler = new DepositHandler(dbClient, config(), realTimeRedisQueue);
+//    //LogoutHandler
+//    LogoutHandler logoutHandler = new LogoutHandler(dbClient, config(), redisClient);
+//    // JwtValidationHandler (Check if JWT has not already been logged out)
+//    JwtValidationHandler jwtValidationHandler = new JwtValidationHandler(redisClient);
 
     /*
     Routes
@@ -169,38 +180,38 @@ public class MainVerticle extends AbstractVerticle {
 
     //Setup default handlers, order should be: jwtAuthHandler --> BodyHandler --> ANY OTHER HANDLER
     router.route("/api/users/*").handler(jwtAuthHandler);
-    router.route("/api/users/*").handler(jwtValidationHandler);
+//    router.route("/api/users/*").handler(jwtValidationHandler);
     router.route("/api/account/*").handler(jwtAuthHandler);
-    router.route("/api/account/*").handler(jwtValidationHandler);
+//    router.route("/api/account/*").handler(jwtValidationHandler);
     router.route("/static/*").handler(jwtAuthHandler);
-    router.route("/static/*").handler(jwtValidationHandler);
+//    router.route("/static/*").handler(jwtValidationHandler);
     router.route("/api/acecard").handler(jwtAuthHandler);
     router.post("/api/acecard").handler(BodyHandler.create()
       .setUploadsDirectory(config().getString("http.temp_dir", "static/temp/"))
       .setBodyLimit(config().getInteger("http.max_image_mb", 1) * MB)
       .setDeleteUploadedFilesOnEnd(true));
-    router.route("/api/acecard").handler(jwtValidationHandler);
+//    router.route("/api/acecard").handler(jwtValidationHandler);
     router.route("/api/club/*").handler(jwtAuthHandler);
     router.route("/api/club/*").handler(BodyHandler.create(false));
-    router.route("/api/club/*").handler(jwtValidationHandler);
+//    router.route("/api/club/*").handler(jwtValidationHandler);
     router.route("/api/administration/*").handler(jwtAuthHandler);
     router.post("/api/administration/link").handler(BodyHandler.create(false));
-    router.route("/api/administration/*").handler(jwtValidationHandler);
+//    router.route("/api/administration/*").handler(jwtValidationHandler);
     router.route("/api/deposits/*").handler(jwtAuthHandler);
     router.post("/api/deposits/create").handler(BodyHandler.create(false));
-    router.route("/api/deposits/*").handler(jwtValidationHandler);
+//    router.route("/api/deposits/*").handler(jwtValidationHandler);
     router.route("/api/logout/").handler(jwtAuthHandler);
-    router.route("/api/logout/").handler(jwtValidationHandler);
+//    router.route("/api/logout/").handler(jwtValidationHandler);
 
     //// Handle register/login endpoints ////
     router.route("/api/register").handler(BodyHandler.create(false));
     router.route("/api/login").handler(BodyHandler.create(false));
     router.post("/api/register").handler(registrationHandler::registerUser);
     router.post("/api/login").handler(loginHandler::login);
-    router.get("/api/activate/:activationkey").handler(activationHandler::activateUser);
+//    router.get("/api/activate/:activationkey").handler(activationHandler::activateUser);
 
     //// logout endpoints ////
-    router.post("/api/logout").handler(logoutHandler::logout);
+//    router.post("/api/logout").handler(logoutHandler::logout);
 
     //// User Management ////
     router.route("/api/users").handler(new AuthorizationHandler(new String[]{"sysop"}));
@@ -234,18 +245,18 @@ public class MainVerticle extends AbstractVerticle {
 
 
     //// Payment Endpoints ////
-    router.post("/api/deposits/create").handler(depositHandler::stripeSource);
-
-    //// Payment Webhooks ////
-    router.post("/api/webhooks/deposits").handler(BodyHandler.create(false));
-    router.post("/api/webhooks/deposits").handler(new StripeSignatureHandler(config().getString("stripe.source_chargeable_secret", "")));
-    router.post("/api/webhooks/deposits").handler(depositHandler::chargeableSourceWebhook);
-    router.post("/api/webhooks/deposits/succeeded").handler(BodyHandler.create(false));
-    router.post("/api/webhooks/deposits/succeeded").handler(new StripeSignatureHandler(config().getString("stripe.charge_succeeded_secret", "")));
-    router.post("/api/webhooks/deposits/succeeded").handler(depositHandler::succeededChargeWebhook);
-    router.post("/api/webhooks/deposits/failed").handler(BodyHandler.create(false));
-    router.post("/api/webhooks/deposits/failed").handler(new StripeSignatureHandler(config().getString("stripe.source_failed_secret", "")));
-    router.post("/api/webhooks/deposits/failed").handler(depositHandler::failedSourceWebhook);
+//    router.post("/api/deposits/create").handler(depositHandler::stripeSource);
+//
+//    //// Payment Webhooks ////
+//    router.post("/api/webhooks/deposits").handler(BodyHandler.create(false));
+//    router.post("/api/webhooks/deposits").handler(new StripeSignatureHandler(config().getString("stripe.source_chargeable_secret", "")));
+//    router.post("/api/webhooks/deposits").handler(depositHandler::chargeableSourceWebhook);
+//    router.post("/api/webhooks/deposits/succeeded").handler(BodyHandler.create(false));
+//    router.post("/api/webhooks/deposits/succeeded").handler(new StripeSignatureHandler(config().getString("stripe.charge_succeeded_secret", "")));
+//    router.post("/api/webhooks/deposits/succeeded").handler(depositHandler::succeededChargeWebhook);
+//    router.post("/api/webhooks/deposits/failed").handler(BodyHandler.create(false));
+//    router.post("/api/webhooks/deposits/failed").handler(new StripeSignatureHandler(config().getString("stripe.source_failed_secret", "")));
+//    router.post("/api/webhooks/deposits/failed").handler(depositHandler::failedSourceWebhook);
 
 
     // HttpServer options

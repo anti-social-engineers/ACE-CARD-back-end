@@ -12,6 +12,7 @@ import acecardapi.apierrors.*;
 import acecardapi.auth.ReactiveAuth;
 import acecardapi.models.ClubVisitor;
 import acecardapi.models.Payment;
+import acecardapi.utils.RedisUtils;
 import io.reactiverse.pgclient.*;
 import io.reactiverse.pgclient.data.Numeric;
 import io.vertx.core.AsyncResult;
@@ -21,9 +22,11 @@ import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.redis.RedisClient;
+import io.vertx.redis.client.RedisAPI;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.UUID;
 
 import static acecardapi.utils.AceCardDecrypter.decrypt;
@@ -33,15 +36,15 @@ import static acecardapi.utils.RequestUtilities.attributesCheckJsonObject;
 
 public class ClubHandler extends AbstractCustomHandler{
 
-  private RedisClient redisClient;
+//  private RedisClient redisClient;
   private RedisClient realTimeRedisClient;
   private ReactiveAuth authProvider;
 
   private String[] requiredAttributesProcessCardPayment = new String[]{"club_id", "card_code", "card_pin", "amount"};
 
-  public ClubHandler(PgPool dbClient, JsonObject config, RedisClient redisClient, ReactiveAuth authProvider, RedisClient realTimeRedisClient) {
+  public ClubHandler(PgPool dbClient, JsonObject config, ReactiveAuth authProvider, RedisClient realTimeRedisClient) {
     super(dbClient, config);
-    this.redisClient = redisClient;
+//    this.redisClient = redisClient;
     this.authProvider = authProvider;
     this.realTimeRedisClient = realTimeRedisClient;
   }
@@ -56,16 +59,8 @@ public class ClubHandler extends AbstractCustomHandler{
 
     if (jsonInput == null || jsonInput.isEmpty() || jsonInput.getString("card_code", null) == null) {
 
-      context.response()
-        .setStatusCode(422)
-        .putHeader("Cache-Control", "no-store, no-cache")
-        .putHeader("X-Content-Type-Options", "nosniff")
-        .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
-        .putHeader("X-Download-Options", "noopen")
-        .putHeader("X-XSS-Protection", "1; mode=block")
-        .putHeader("X-FRAME-OPTIONS", "DENY")
-        .putHeader("content-type", "application/json; charset=utf-8")
-        .end(Json.encodePrettily(new ParameterNotFoundViolation("card_code").errorJson()));
+      raise422(context, new ParameterNotFoundViolation("card_code"));
+
     } else {
 
       String cardCode = jsonInput.getString("card_code");
@@ -85,16 +80,7 @@ public class ClubHandler extends AbstractCustomHandler{
               if(res.result().rowCount() == 0) {
                 // Card not found
 
-                context.response()
-                  .setStatusCode(404)
-                  .putHeader("Cache-Control", "no-store, no-cache")
-                  .putHeader("X-Content-Type-Options", "nosniff")
-                  .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
-                  .putHeader("X-Download-Options", "noopen")
-                  .putHeader("X-XSS-Protection", "1; mode=block")
-                  .putHeader("X-FRAME-OPTIONS", "DENY")
-                  .putHeader("content-type", "application/json; charset=utf-8")
-                  .end();
+                raise404(context);
 
                 connection.close();
 
@@ -200,13 +186,19 @@ public class ClubHandler extends AbstractCustomHandler{
 
             String redisKey = "pin_attempt:" + decryptedCardCode;
 
+            RedisAPI redisClient = RedisAPI.api(RedisUtils.backEndRedis);
+
             redisClient.get(redisKey, redisKeyRes -> {
               if (redisKeyRes.succeeded()) {
 
+                String attempts = null;
+                if (redisKeyRes.result() != null) {
+                  attempts = redisKeyRes.result().toString();
+                }
 
-                if (redisKeyRes.result() == null || Integer.parseInt(redisKeyRes.result()) < config.getInteger("card.max_tries", 3)) {
+                if (attempts == null || Integer.parseInt(attempts) < config.getInteger("card.max_tries", 3)) {
 
-                  processCardPayment(context, jsonBody, decryptedCardCode, redisKeyRes.result(), redisKey);
+                  processCardPayment(context, redisClient, jsonBody, decryptedCardCode, attempts, redisKey);
 
                 } else {
 
@@ -237,13 +229,14 @@ public class ClubHandler extends AbstractCustomHandler{
   /**
    Function which further processes a payment with an ACE-card
    @param context contains information about the request
+   @param redisClient API for talking with redis
    @param requestBody JsonObject which contains the request body as json
    @param decryptedCardCode the card_code but decrypted
    @param attempts how many attempts have already been made
    @param attemptsCode the code used to register attempts on
    @return void
    */
-  private void processCardPayment(RoutingContext context, JsonObject requestBody, String decryptedCardCode, String attempts, String attemptsCode) {
+  private void processCardPayment(RoutingContext context, RedisAPI redisClient, JsonObject requestBody, String decryptedCardCode, String attempts, String attemptsCode) {
 
     dbClient.getConnection(getConnectionRes -> {
 
@@ -277,7 +270,7 @@ public class ClubHandler extends AbstractCustomHandler{
                 raise401(context, error);
                 connection.close();
 
-                addPINAttempt(attempts, attemptsCode);
+                addPINAttempt(attempts, attemptsCode, redisClient);
 
               } else if (requestBody.getDouble("amount") > row.getNumeric("credits").doubleValue()){
                 CreditsViolaton error = new CreditsViolaton("Not enough credits.");
@@ -372,18 +365,19 @@ public class ClubHandler extends AbstractCustomHandler{
    @param attemptsCode the code used to track attempts
    @return void
    */
-  private void addPINAttempt(String attempts, String attemptsCode) {
+  private void addPINAttempt(String attempts, String attemptsCode, RedisAPI redisClient) {
 
     int attemptsNumber;
 
-    if (attempts != null)
-     attemptsNumber = Integer.valueOf(attempts) + 1;
+    if (attempts != null) {
+      attemptsNumber = Integer.valueOf(attempts) + 1;
+    }
     else
       attemptsNumber = 1;
 
-    redisClient.set(attemptsCode, Integer.toString(attemptsNumber), redisSetRes -> {
+    redisClient.set(Arrays.asList(attemptsCode, Integer.toString(attemptsNumber)),redisSetRes -> {
       if (redisSetRes.succeeded()) {
-        redisClient.expire(attemptsCode, config.getLong("card.failed_attempts_expiration", 3600L), expireRedisRes -> {
+        redisClient.expire(attemptsCode, config.getLong("card.failed_attempts_expiration", 3600L).toString(), expireRedisRes -> {
         });
       }
     });
