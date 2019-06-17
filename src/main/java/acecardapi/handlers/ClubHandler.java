@@ -22,24 +22,28 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.redis.RedisClient;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.UUID;
 
 import static acecardapi.utils.AceCardDecrypter.decrypt;
 import static acecardapi.utils.NumberUtilities.*;
+import static acecardapi.utils.RedisUtils.realTimeRedisLPUSH;
 import static acecardapi.utils.RequestUtilities.attributesCheckJsonObject;
 
 public class ClubHandler extends AbstractCustomHandler{
 
   private RedisClient redisClient;
+  private RedisClient realTimeRedisClient;
   private ReactiveAuth authProvider;
 
   private String[] requiredAttributesProcessCardPayment = new String[]{"club_id", "card_code", "card_pin", "amount"};
 
-  public ClubHandler(PgPool dbClient, JsonObject config, RedisClient redisClient, ReactiveAuth authProvider) {
+  public ClubHandler(PgPool dbClient, JsonObject config, RedisClient redisClient, ReactiveAuth authProvider, RedisClient realTimeRedisClient) {
     super(dbClient, config);
     this.redisClient = redisClient;
     this.authProvider = authProvider;
+    this.realTimeRedisClient = realTimeRedisClient;
   }
 
   /**
@@ -249,7 +253,7 @@ public class ClubHandler extends AbstractCustomHandler{
         PgTransaction transaction = connection.begin();
 
         // Retrieve card data
-        transaction.preparedQuery("SELECT id, credits, pin, pin_salt, is_blocked FROM cards WHERE card_code=$1", Tuple.of(decryptedCardCode), cardRes -> {
+        transaction.preparedQuery("SELECT id, credits, pin, pin_salt, is_blocked, user_id_id FROM cards WHERE card_code=$1", Tuple.of(decryptedCardCode), cardRes -> {
 
           if (cardRes.succeeded()) {
 
@@ -287,19 +291,13 @@ public class ClubHandler extends AbstractCustomHandler{
 
                   if (transactionRes.succeeded()) {
 
-                    context.response()
-                      .setStatusCode(201)
-                      .putHeader("Cache-Control", "no-store, no-cache")
-                      .putHeader("X-Content-Type-Options", "nosniff")
-                      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
-                      .putHeader("X-Download-Options", "noopen")
-                      .putHeader("X-XSS-Protection", "1; mode=block")
-                      .putHeader("X-FRAME-OPTIONS", "DENY")
-                      .putHeader("content-type", "application/json; charset=utf-8")
-
-                      .end(Json.encodePrettily(payment.toJsonObject(false)));
+                    raise200(context, payment.toJsonObject(false));
 
                     connection.close();
+
+                    realTimeRedisLPUSH(realTimeRedisClient, row.getUUID("user_id_id"), "transaction", requestBody.getDouble("amount"), row.getNumeric("credits").doubleValue() - requestBody.getDouble("amount"), OffsetDateTime.now(), redisRes -> {
+                      System.out.println(redisRes.result());
+                    });
 
                   } else {
                     raise500(context, transactionRes.cause());

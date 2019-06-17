@@ -125,7 +125,7 @@ public class DepositHandler extends AbstractCustomHandler {
 
   private void getUserCardStripeSource(PgConnection connection, UUID userId, Handler<AsyncResult<UUID>> resultHandler) {
 
-    connection.preparedQuery("SELECT id FROM cards WHERE user_id_id = $1", Tuple.of(userId), userRes -> {
+    connection.preparedQuery("SELECT id FROM cards WHERE user_id_id = $1 and is_activated = $2", Tuple.of(userId, true), userRes -> {
 
       if (userRes.succeeded()) {
 
@@ -293,17 +293,25 @@ public class DepositHandler extends AbstractCustomHandler {
           if (res.succeeded()) {
             raise200(context);
 
-            connection.preparedQuery("SELECT card_id_id FROM deposits WHERE source_id = $1", Tuple.of(source), cardIdRes -> {
+            connection.preparedQuery("SELECT card_id_id, amount FROM deposits WHERE source_id = $1", Tuple.of(source), cardIdRes -> {
 
               if (cardIdRes.succeeded()) {
 
-                connection.preparedQuery("SELECT user_id_id FROM cards WHERE id = $1", Tuple.of(cardIdRes.result().iterator().next().getUUID("card_id_id")), userIdRes -> {
+                Row cardIdResRow = cardIdRes.result().iterator().next();
+                double dAmount = cardIdResRow.getNumeric("amount").doubleValue();
+                UUID dCardId = cardIdResRow.getUUID("card_id_id");
+
+                connection.preparedQuery("SELECT user_id_id, credits FROM cards WHERE id = $1", Tuple.of(dCardId), userIdRes -> {
                  if (userIdRes.succeeded()) {
+
+                   Row userIdResRow = userIdRes.result().iterator().next();
+                   double newAmount = userIdResRow.getNumeric("credits").doubleValue();
+                   UUID userId = userIdResRow.getUUID("user_id_id");
 
                    connection.close();
 
                    // Create a notification in the real time redis queue
-                   realTimeRedisLPUSH(realTimeRedisQueue, userIdRes.result().iterator().next().getUUID("user_id_id"), "deposit", res.result(), OffsetDateTime.now(), redisRes -> {
+                   realTimeRedisLPUSH(realTimeRedisQueue, userId, "deposit", dAmount, newAmount,  OffsetDateTime.now(), redisRes -> {
                      System.out.println(redisRes.result());
                    });
 

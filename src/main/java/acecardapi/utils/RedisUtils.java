@@ -29,6 +29,7 @@ public class RedisUtils {
         .put("type", "notification")
         .put("name",  type)
         .put("amount", doubleToCurrencyString(amount))
+        .put("updated_balance", doubleToCurrencyString(newCredits))
         .put("datetime", datetime.toString()
         );
 
