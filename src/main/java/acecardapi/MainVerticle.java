@@ -150,10 +150,10 @@ public class MainVerticle extends AbstractVerticle {
     ClubHandler clubHandler = new ClubHandler(dbClient, config(), authProvider, realTimeRedisQueue);
     // ClubHandler
 //    DepositHandler depositHandler = new DepositHandler(dbClient, config(), realTimeRedisQueue);
-//    //LogoutHandler
-//    LogoutHandler logoutHandler = new LogoutHandler(dbClient, config(), redisClient);
-//    // JwtValidationHandler (Check if JWT has not already been logged out)
-//    JwtValidationHandler jwtValidationHandler = new JwtValidationHandler(redisClient);
+    //LogoutHandler
+    LogoutHandler logoutHandler = new LogoutHandler(dbClient, config());
+    // JwtValidationHandler (Check if JWT has not already been logged out)
+    JwtValidationHandler jwtValidationHandler = new JwtValidationHandler();
 
     /*
     Routes
@@ -180,7 +180,7 @@ public class MainVerticle extends AbstractVerticle {
 
     //Setup default handlers, order should be: jwtAuthHandler --> BodyHandler --> ANY OTHER HANDLER
     router.route("/api/users/*").handler(jwtAuthHandler);
-//    router.route("/api/users/*").handler(jwtValidationHandler);
+    router.route("/api/users/*").handler(jwtValidationHandler);
     router.route("/api/account/*").handler(jwtAuthHandler);
 //    router.route("/api/account/*").handler(jwtValidationHandler);
     router.route("/static/*").handler(jwtAuthHandler);
@@ -201,7 +201,7 @@ public class MainVerticle extends AbstractVerticle {
     router.post("/api/deposits/create").handler(BodyHandler.create(false));
 //    router.route("/api/deposits/*").handler(jwtValidationHandler);
     router.route("/api/logout/").handler(jwtAuthHandler);
-//    router.route("/api/logout/").handler(jwtValidationHandler);
+    router.route("/api/logout/").handler(jwtValidationHandler);
 
     //// Handle register/login endpoints ////
     router.route("/api/register").handler(BodyHandler.create(false));
@@ -211,7 +211,7 @@ public class MainVerticle extends AbstractVerticle {
 //    router.get("/api/activate/:activationkey").handler(activationHandler::activateUser);
 
     //// logout endpoints ////
-//    router.post("/api/logout").handler(logoutHandler::logout);
+    router.post("/api/logout").handler(logoutHandler::logout);
 
     //// User Management ////
     router.route("/api/users").handler(new AuthorizationHandler(new String[]{"sysop"}));
