@@ -344,9 +344,9 @@ public class UserHandler extends AbstractCustomHandler{
     int limit = config.getInteger("queries.max_return_size", 25) + 1;
 
     if (order.equals("desc")) {
-      return "SELECT id, amount, deposited_at FROM deposits  WHERE card_id_id = $1 ORDER BY deposited_at DESC LIMIT " + limit;
+      return "SELECT id, amount, deposited_at FROM deposits  WHERE card_id_id = $1 AND status = $2 ORDER BY deposited_at DESC LIMIT " + limit;
     } else {
-      return "SELECT id, amount, deposited_at FROM deposits  WHERE card_id_id = $1 ORDER BY deposited_at ASC LIMIT " + limit;
+      return "SELECT id, amount, deposited_at FROM deposits  WHERE card_id_id = $1 AND status = $2 ORDER BY deposited_at ASC LIMIT " + limit;
     }
 
   }
@@ -357,18 +357,18 @@ public class UserHandler extends AbstractCustomHandler{
     int limit = config.getInteger("queries.max_return_size", 25) + 1;
 
     if (order.equals("desc")) {
-      return "SELECT id, amount, deposited_at FROM deposits  WHERE card_id_id = $1 AND deposited_at <= $2 ORDER BY deposited_at DESC LIMIT " + limit;
+      return "SELECT id, amount, deposited_at FROM deposits  WHERE card_id_id = $1 AND status = $2 AND deposited_at <= $3 ORDER BY deposited_at DESC LIMIT " + limit;
     } else {
-      return "SELECT id, amount, deposited_at FROM deposits  WHERE card_id_id = $1 AND deposited_at > $2 ORDER BY deposited_at DESC LIMIT " + limit;
+      return "SELECT id, amount, deposited_at FROM deposits  WHERE card_id_id = $1 AND status = $2 AND deposited_at > $3 ORDER BY deposited_at DESC LIMIT " + limit;
     }
   }
 
   private Tuple processUserDepositsTuple(boolean has_cursor, UUID cardId, String cursor) {
 
     if (has_cursor) {
-      return Tuple.of(cardId, OffsetDateTime.parse(cursor));
+      return Tuple.of(cardId, "succeeded", OffsetDateTime.parse(cursor));
     } else {
-      return Tuple.of(cardId);
+      return Tuple.of(cardId, "succeeded");
     }
   }
 
