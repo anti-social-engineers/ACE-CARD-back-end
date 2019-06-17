@@ -142,8 +142,8 @@ public class MainVerticle extends AbstractVerticle {
     RegistrationHandler registrationHandler = new RegistrationHandler(dbClient, config(), authProvider, mailClient);
     // LoginHandler
     LoginHandler loginHandler = new LoginHandler(dbClient, config(), authProvider, jwtProvider);
-//    // ActivationHandler
-//    ActivationHandler activationHandler = new ActivationHandler(dbClient, config(), redisClient);
+    // ActivationHandler
+    ActivationHandler activationHandler = new ActivationHandler(dbClient, config());
     // CardHandler
     CardHandler cardHandler = new CardHandler(dbClient, config(), authProvider);
     // ClubHandler
@@ -182,24 +182,24 @@ public class MainVerticle extends AbstractVerticle {
     router.route("/api/users/*").handler(jwtAuthHandler);
     router.route("/api/users/*").handler(jwtValidationHandler);
     router.route("/api/account/*").handler(jwtAuthHandler);
-//    router.route("/api/account/*").handler(jwtValidationHandler);
+    router.route("/api/account/*").handler(jwtValidationHandler);
     router.route("/static/*").handler(jwtAuthHandler);
-//    router.route("/static/*").handler(jwtValidationHandler);
+    router.route("/static/*").handler(jwtValidationHandler);
     router.route("/api/acecard").handler(jwtAuthHandler);
     router.post("/api/acecard").handler(BodyHandler.create()
       .setUploadsDirectory(config().getString("http.temp_dir", "static/temp/"))
       .setBodyLimit(config().getInteger("http.max_image_mb", 1) * MB)
       .setDeleteUploadedFilesOnEnd(true));
-//    router.route("/api/acecard").handler(jwtValidationHandler);
+    router.route("/api/acecard").handler(jwtValidationHandler);
     router.route("/api/club/*").handler(jwtAuthHandler);
     router.route("/api/club/*").handler(BodyHandler.create(false));
-//    router.route("/api/club/*").handler(jwtValidationHandler);
+    router.route("/api/club/*").handler(jwtValidationHandler);
     router.route("/api/administration/*").handler(jwtAuthHandler);
     router.post("/api/administration/link").handler(BodyHandler.create(false));
-//    router.route("/api/administration/*").handler(jwtValidationHandler);
+    router.route("/api/administration/*").handler(jwtValidationHandler);
     router.route("/api/deposits/*").handler(jwtAuthHandler);
     router.post("/api/deposits/create").handler(BodyHandler.create(false));
-//    router.route("/api/deposits/*").handler(jwtValidationHandler);
+    router.route("/api/deposits/*").handler(jwtValidationHandler);
     router.route("/api/logout/").handler(jwtAuthHandler);
     router.route("/api/logout/").handler(jwtValidationHandler);
 
@@ -208,7 +208,7 @@ public class MainVerticle extends AbstractVerticle {
     router.route("/api/login").handler(BodyHandler.create(false));
     router.post("/api/register").handler(registrationHandler::registerUser);
     router.post("/api/login").handler(loginHandler::login);
-//    router.get("/api/activate/:activationkey").handler(activationHandler::activateUser);
+    router.get("/api/activate/:activationkey").handler(activationHandler::activateUser);
 
     //// logout endpoints ////
     router.post("/api/logout").handler(logoutHandler::logout);

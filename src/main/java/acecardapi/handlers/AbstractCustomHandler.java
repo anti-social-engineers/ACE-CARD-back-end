@@ -152,6 +152,20 @@ abstract class AbstractCustomHandler {
       .end();
   }
 
+  void raise404(RoutingContext context, ApiError error) {
+
+    context.response()
+      .setStatusCode(404)
+      .putHeader("Cache-Control", "no-store, no-cache")
+      .putHeader("X-Content-Type-Options", "nosniff")
+      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+      .putHeader("X-Download-Options", "noopen")
+      .putHeader("X-XSS-Protection", "1; mode=block")
+      .putHeader("X-FRAME-OPTIONS", "DENY")
+      .putHeader("content-type", "application/json; charset=utf-8")
+      .end(Json.encodePrettily(error.errorJson()));
+  }
+
   void raise422(RoutingContext context, ApiError error) {
 
     context.response()
