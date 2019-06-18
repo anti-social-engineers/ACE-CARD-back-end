@@ -10,6 +10,7 @@
   "db.user" : "",
   "db.pass" : "",
   "db.maxc" : ,
+  "db.idle_timeout" : ,
   "jwt.publickey" : "",
   "jwt.exptime" : ,
   "redis.pass" : "",
@@ -22,6 +23,11 @@
   "debug.dsn" : "",
   "stripe.enabled" : ,
   "stripe.apikey" : "",
+  "stripe.source_chargeable_secret" : "",
+  "stripe.charge_succeeded_secret" : "",
   "card.max_tries" :,
-  "card.failed_attempts_expiration" :
+  "card.failed_attempts_expiration" :,
+  "queries.max_return_size" :,
+  "realtime.redis.host": "",
+  "realtime.redis.auth": ""
 }

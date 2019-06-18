@@ -25,4 +25,16 @@ public class NumberUtilities {
     }
   }
 
+  public static boolean intMinMaxValue(int value, int minValue, int maxValue) {
+
+    return value >= minValue && value <= maxValue;
+
+  }
+
+  public static boolean doubleMinMaxValue(double value, double minValue, double maxValue) {
+
+    return value >= minValue && value <= maxValue;
+
+  }
+
 }

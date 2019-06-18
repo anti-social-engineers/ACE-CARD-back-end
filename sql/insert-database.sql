@@ -47,7 +47,8 @@ VALUES ('4e162c6c-cc6f-433f-a6aa-bb167a9d8480', '1234567812345678', true, 0.00, 
 --- [CLUB]
 ---
 INSERT INTO clubs (id, min_age, club_address_id, owner_id, club_name)
-VALUES ('2d466140-f70b-4ac3-8156-ee922657bacd', 18, '1c7ef92f-5424-438f-84f4-ba0158ad06e4', '4f8c9c3c-c91d-4db0-9f8b-b8a6eb9dcc97', 'ACE of Clubs');
+VALUES ('2d466140-f70b-4ac3-8156-ee922657bacd', 18, '1c7ef92f-5424-438f-84f4-ba0158ad06e4', '4f8c9c3c-c91d-4db0-9f8b-b8a6eb9dcc97', 'ACE of Clubs'),
+('7365cad1-269d-4279-9056-0b1e74d50af9', 18, '1c7ef92f-5424-438f-84f4-ba0158ad06e4', 'd952e373-2f43-456e-a76a-c01541952c8b', 'Raspberry Pi Club');
 
 
 ---

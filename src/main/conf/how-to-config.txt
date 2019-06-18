@@ -19,25 +19,37 @@ db.MaxC : The max amount of connections
 jwt.publickey : A secure base64 encoded key
 jwt.exptime : Amount of seconds before a key expires
 
-Example:
+Format:
 {
-  "http.port" : <int>,
-  "http.ssl" : <boolean>,
+  "http.port" : ,
+  "http.ssl" : ,
   "http.image_dir" : "",
-  "http.max_image_mb" : <int>,
+  "http.temp_dir" : "",
+  "http.max_image_mb" : ,
   "db.host" : "",
-  "db.port" : <int>,
+  "db.port" : ,
   "db.name" : "",
   "db.user" : "",
   "db.pass" : "",
-  "db.maxc" : <int>,
+  "db.maxc" : ,
+  "db.idle_timeout" ,
   "jwt.publickey" : "",
-  "jwt.exptime" : <int>,
+  "jwt.exptime" : ,
   "redis.pass" : "",
   "mail.host" : "",
-  "mail.port" : <int>,
+  "mail.port" : ,
   "mail.user" : "",
   "mail.pass" : "",
-  "registration.code_expire_time" : <int>,
-  "card.encryptionkey" : ""
+  "card.encryptionkey" : "",
+  "debug.enabled" : ,
+  "debug.dsn" : "",
+  "stripe.enabled" : ,
+  "stripe.apikey" : "",
+  "stripe.source_chargeable_secret" : "",
+  "card.max_tries" :,
+  "card.failed_attempts_expiration" :,
+  "queries.max_return_size" :,
+  "realtime.redis.host": "",
+  "realtime.redis.auth": ""
 }
+

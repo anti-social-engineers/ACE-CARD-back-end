@@ -13,6 +13,7 @@ import acecardapi.apierrors.UniqueViolation;
 import acecardapi.auth.ReactiveAuth;
 import acecardapi.models.Users;
 import acecardapi.utils.RandomToken;
+import acecardapi.utils.RedisUtils;
 import io.reactiverse.pgclient.PgException;
 import io.reactiverse.pgclient.PgPool;
 import io.sentry.Sentry;
@@ -25,20 +26,20 @@ import io.vertx.ext.mail.MailClient;
 import io.vertx.ext.mail.MailMessage;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.redis.RedisClient;
+import io.vertx.redis.client.RedisAPI;
 
+import java.util.Arrays;
 import java.util.UUID;
 
 public class RegistrationHandler extends AbstractCustomHandler {
 
   private ReactiveAuth authProvider;
-  private RedisClient redisClient;
   private MailClient mailClient;
 
-  public RegistrationHandler(PgPool dbClient, JsonObject config, ReactiveAuth authProvider, RedisClient redisClient,
+  public RegistrationHandler(PgPool dbClient, JsonObject config, ReactiveAuth authProvider,
                              MailClient mailClient) {
     super(dbClient, config);
     this.authProvider = authProvider;
-    this.redisClient = redisClient;
     this.mailClient = mailClient;
   }
 
@@ -160,9 +161,12 @@ public class RegistrationHandler extends AbstractCustomHandler {
 
     String tokenValue = token.nextString();
 
-    redisClient.exists(tokenValue, redisExist -> {
+    RedisAPI redisClient = RedisAPI.api(RedisUtils.backEndRedis);
+
+    redisClient.exists(Arrays.asList(tokenValue),redisExist -> {
       if (redisExist.succeeded()) {
-        if (redisExist.result() == 1) {
+        System.out.println(redisExist.result().toInteger());
+        if (redisExist.result().toInteger() == 1) {
           generateRedisKey(token, userId, resultHandler);
         }
         else {
@@ -176,9 +180,11 @@ public class RegistrationHandler extends AbstractCustomHandler {
 
   private void insertRedisKey(String tokenValue, UUID userId, Handler<AsyncResult<String>> resultHandler) {
 
-    redisClient.set(tokenValue, userId.toString(), res -> {
+    RedisAPI redisClient = RedisAPI.api(RedisUtils.backEndRedis);
+
+    redisClient.set(Arrays.asList(tokenValue, userId.toString()), res -> {
       if (res.succeeded()) {
-        redisClient.expire(tokenValue, this.config.getLong("registration.code_expire_time", 32400L), expireRes -> {
+        redisClient.expire(tokenValue, this.config.getLong("registration.code_expire_time", 32400L).toString(), expireRes -> {
           if (expireRes.succeeded()) {
             resultHandler.handle(Future.succeededFuture(tokenValue));
           } else {

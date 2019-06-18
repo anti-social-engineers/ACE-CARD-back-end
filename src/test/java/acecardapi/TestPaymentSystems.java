@@ -92,7 +92,7 @@ public class TestPaymentSystems {
 
   @Test
   @DisplayName("[POST] Payment with valid JSON body, sufficient funds")
-  @Timeout(value = 5, timeUnit = TimeUnit.SECONDS)
+  @Timeout(value = 30, timeUnit = TimeUnit.SECONDS)
   void test_201_payment_sufficient(Vertx vertx, VertxTestContext testContext) {
     client
       .post(8888, "localhost", "/api/login")

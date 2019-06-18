@@ -12,6 +12,7 @@ import acecardapi.apierrors.ApiError;
 import io.reactiverse.pgclient.PgPool;
 import io.sentry.Sentry;
 import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 
@@ -23,6 +24,76 @@ abstract class AbstractCustomHandler {
   AbstractCustomHandler(PgPool dbClient, JsonObject config) {
     this.dbClient = dbClient;
     this.config = config;
+  }
+
+  void raise200(RoutingContext context) {
+
+    context.response()
+      .setStatusCode(200)
+      .putHeader("Cache-Control", "no-store, no-cache")
+      .putHeader("X-Content-Type-Options", "nosniff")
+      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+      .putHeader("X-Download-Options", "noopen")
+      .putHeader("X-XSS-Protection", "1; mode=block")
+      .putHeader("X-FRAME-OPTIONS", "DENY")
+      .putHeader("content-type", "application/json; charset=utf-8")
+      .end();
+  }
+
+  void raise200(RoutingContext context, JsonArray jsonArray) {
+
+    context.response()
+      .setStatusCode(200)
+      .putHeader("Cache-Control", "no-store, no-cache")
+      .putHeader("X-Content-Type-Options", "nosniff")
+      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+      .putHeader("X-Download-Options", "noopen")
+      .putHeader("X-XSS-Protection", "1; mode=block")
+      .putHeader("X-FRAME-OPTIONS", "DENY")
+      .putHeader("content-type", "application/json; charset=utf-8")
+      .end(Json.encodePrettily(jsonArray));
+  }
+
+  void raise200(RoutingContext context, JsonObject jsonObject) {
+
+    context.response()
+      .setStatusCode(200)
+      .putHeader("Cache-Control", "no-store, no-cache")
+      .putHeader("X-Content-Type-Options", "nosniff")
+      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+      .putHeader("X-Download-Options", "noopen")
+      .putHeader("X-XSS-Protection", "1; mode=block")
+      .putHeader("X-FRAME-OPTIONS", "DENY")
+      .putHeader("content-type", "application/json; charset=utf-8")
+      .end(Json.encodePrettily(jsonObject));
+  }
+
+  void raise201(RoutingContext context) {
+
+    context.response()
+      .setStatusCode(201)
+      .putHeader("Cache-Control", "no-store, no-cache")
+      .putHeader("X-Content-Type-Options", "nosniff")
+      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+      .putHeader("X-Download-Options", "noopen")
+      .putHeader("X-XSS-Protection", "1; mode=block")
+      .putHeader("X-FRAME-OPTIONS", "DENY")
+      .putHeader("content-type", "application/json; charset=utf-8")
+      .end();
+  }
+
+  void raise201(RoutingContext context, JsonObject jsonObject) {
+
+    context.response()
+      .setStatusCode(201)
+      .putHeader("Cache-Control", "no-store, no-cache")
+      .putHeader("X-Content-Type-Options", "nosniff")
+      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+      .putHeader("X-Download-Options", "noopen")
+      .putHeader("X-XSS-Protection", "1; mode=block")
+      .putHeader("X-FRAME-OPTIONS", "DENY")
+      .putHeader("content-type", "application/json; charset=utf-8")
+      .end(Json.encodePrettily(jsonObject));
   }
 
   void raise400(RoutingContext context, ApiError error) {
@@ -79,6 +150,20 @@ abstract class AbstractCustomHandler {
       .putHeader("X-FRAME-OPTIONS", "DENY")
       .putHeader("content-type", "application/json; charset=utf-8")
       .end();
+  }
+
+  void raise404(RoutingContext context, ApiError error) {
+
+    context.response()
+      .setStatusCode(404)
+      .putHeader("Cache-Control", "no-store, no-cache")
+      .putHeader("X-Content-Type-Options", "nosniff")
+      .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
+      .putHeader("X-Download-Options", "noopen")
+      .putHeader("X-XSS-Protection", "1; mode=block")
+      .putHeader("X-FRAME-OPTIONS", "DENY")
+      .putHeader("content-type", "application/json; charset=utf-8")
+      .end(Json.encodePrettily(error.errorJson()));
   }
 
   void raise422(RoutingContext context, ApiError error) {
