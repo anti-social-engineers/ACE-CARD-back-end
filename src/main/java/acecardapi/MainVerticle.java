@@ -278,7 +278,11 @@ public class MainVerticle extends AbstractVerticle {
         .setSsl(true)
         .setKeyCertOptions(pemKeyCertOptions)
         .removeEnabledSecureTransportProtocol("TLSv1")
-        .removeEnabledSecureTransportProtocol("TLSv1.1");
+        .removeEnabledSecureTransportProtocol("TLSv1.1")
+        .addEnabledCipherSuite("ECDHE-RSA-AES128-GCM-SHA256")
+        .addEnabledCipherSuite("ECDHE-ECDSA-AES128-GCM-SHA256")
+        .addEnabledCipherSuite("ECDHE-RSA-AES256-GCM-SHA384")
+        .addEnabledCipherSuite("CDHE-ECDSA-AES256-GCM-SHA384");
 
       // Create the HttpServer
       vertx.createHttpServer(httpServerOptions).requestHandler(router).listen(
