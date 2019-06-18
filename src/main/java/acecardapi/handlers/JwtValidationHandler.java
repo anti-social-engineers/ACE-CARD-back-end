@@ -36,7 +36,6 @@ public class JwtValidationHandler implements Handler<RoutingContext> {
        else
        {
          context.next();
-         
        }
      }
      else
