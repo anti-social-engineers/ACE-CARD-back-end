@@ -9,6 +9,7 @@
 package acecardapi.handlers;
 
 import acecardapi.apierrors.InputFormatViolation;
+import acecardapi.apierrors.InputLengthFormatViolation;
 import acecardapi.apierrors.UniqueViolation;
 import acecardapi.auth.ReactiveAuth;
 import acecardapi.models.Users;
@@ -48,7 +49,11 @@ public class RegistrationHandler extends AbstractCustomHandler {
 
       Users users = Json.decodeValue(context.getBodyAsString(), Users.class);
 
-      this.createUser(context, users);
+      if (users.getPassword().length() < config.getInteger("password.length", 8)) {
+        raise422(context, new InputLengthFormatViolation("password"));
+      } else {
+        createUser(context, users);
+      }
 
     } catch (Exception e) {
 
