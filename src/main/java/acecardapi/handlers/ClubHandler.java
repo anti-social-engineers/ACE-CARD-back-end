@@ -173,47 +173,50 @@ public class ClubHandler extends AbstractCustomHandler{
 
         JsonObject jsonBody = context.getBodyAsJson();
 
-        doubleHasNADecimals(2, jsonBody.getDouble("amount"), correctDecimalsRes -> {
-          if (correctDecimalsRes.succeeded()) {
+        if (doubleMinMaxValue(jsonBody.getDouble("amount"), 0.01, 500000)) {
+          doubleHasNADecimals(2, jsonBody.getDouble("amount"), correctDecimalsRes -> {
+            if (correctDecimalsRes.succeeded()) {
 
-            String cardCode = jsonBody.getString("card_code");
+              String cardCode = jsonBody.getString("card_code");
 
-            String decryptedCardCode = decrypt(cardCode, config.getString("card.encryptionkey", "C*F-JaNdRgUjXn2r5u8x/A?D(G+KbPeS"));
+              String decryptedCardCode = decrypt(cardCode, config.getString("card.encryptionkey", "C*F-JaNdRgUjXn2r5u8x/A?D(G+KbPeS"));
 
-            String redisKey = "pin_attempt:" + decryptedCardCode;
+              String redisKey = "pin_attempt:" + decryptedCardCode;
 
-            RedisAPI redisClient = RedisAPI.api(RedisUtils.backEndRedis);
+              RedisAPI redisClient = RedisAPI.api(RedisUtils.backEndRedis);
 
-            redisClient.get(redisKey, redisKeyRes -> {
-              if (redisKeyRes.succeeded()) {
+              redisClient.get(redisKey, redisKeyRes -> {
+                if (redisKeyRes.succeeded()) {
 
-                String attempts = null;
-                if (redisKeyRes.result() != null) {
-                  attempts = redisKeyRes.result().toString();
-                }
+                  String attempts = null;
+                  if (redisKeyRes.result() != null) {
+                    attempts = redisKeyRes.result().toString();
+                  }
 
-                if (attempts == null || Integer.parseInt(attempts) < config.getInteger("card.max_tries", 3)) {
+                  if (attempts == null || Integer.parseInt(attempts) < config.getInteger("card.max_tries", 3)) {
 
-                  processCardPayment(context, redisClient, jsonBody, decryptedCardCode, attempts, redisKey);
+                    processCardPayment(context, redisClient, jsonBody, decryptedCardCode, attempts, redisKey);
+
+                  } else {
+
+                    raise429(context, new TooManyFailedAttemptsViolation());
+
+                  }
 
                 } else {
-
-                  raise429(context, new TooManyFailedAttemptsViolation());
-
+                  raise500(context, redisKeyRes.cause());
                 }
+              });
 
-              } else {
-                raise500(context, redisKeyRes.cause());
-              }
-            });
-
-          } else {
-            InputFormatViolation error = new InputFormatViolation("amount");
-            raise422(context, error);
-          }
-        });
-
-
+            } else {
+              InputFormatViolation error = new InputFormatViolation("amount");
+              raise422(context, error);
+            }
+          });
+        } else {
+          // Violation in min/max value
+         raise422(context, new InputValueViolation("amount"));
+        }
       } else {
         ParameterNotFoundViolation error = new ParameterNotFoundViolation(attCheckRes.cause().getMessage());
         raise422(context, error);

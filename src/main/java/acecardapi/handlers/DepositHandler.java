@@ -8,6 +8,7 @@
 
 package acecardapi.handlers;
 
+import acecardapi.apierrors.InputValueViolation;
 import acecardapi.apierrors.ParameterNotFoundViolation;
 import acecardapi.models.Deposit;
 import acecardapi.utils.RedisUtils;
@@ -20,7 +21,6 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.redis.RedisClient;
 import io.vertx.redis.client.RedisAPI;
 
 import java.time.OffsetDateTime;
@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import static acecardapi.utils.NumberUtilities.intMinMaxValue;
 import static acecardapi.utils.RedisUtils.realTimeRedisLPUSH;
 import static acecardapi.utils.RequestUtilities.attributesCheckJsonObject;
 
@@ -45,73 +46,81 @@ public class DepositHandler extends AbstractCustomHandler {
       if (attributeRes.succeeded()) {
 
         // Convert from cents to currency
-        double amount = context.getBodyAsJson().getDouble("amount") / 100;
 
-        String return_url = context.getBodyAsJson().getString("return_url");
+        if (intMinMaxValue(context.getBodyAsJson().getInteger("amount"), 500, 5000000)) {
+          double amount = context.getBodyAsJson().getDouble("amount") / 100;
 
-        dbClient.getConnection(getConnectionRes -> {
-          if (getConnectionRes.succeeded()) {
-            PgConnection connection = getConnectionRes.result();
+          String return_url = context.getBodyAsJson().getString("return_url");
 
-            getUserCardStripeSource(connection, UUID.fromString(context.user().principal().getString("sub")), userCardRes -> {
+          dbClient.getConnection(getConnectionRes -> {
+            if (getConnectionRes.succeeded()) {
+              PgConnection connection = getConnectionRes.result();
 
-              if (userCardRes.succeeded()) {
-                Deposit deposit = new Deposit(amount, userCardRes.result());
+              getUserCardStripeSource(connection, UUID.fromString(context.user().principal().getString("sub")), userCardRes -> {
 
-                createDepositStripeSource(connection, deposit, createDepositRes -> {
-                  if (createDepositRes.succeeded()) {
+                if (userCardRes.succeeded()) {
+                  Deposit deposit = new Deposit(amount, userCardRes.result());
 
-                    Map<String, Object> sourceParams = new HashMap<>();
-                    sourceParams.put("type", "ideal");
-                    sourceParams.put("currency", "eur");
-                    sourceParams.put("amount", context.getBodyAsJson().getInteger("amount"));
-                    sourceParams.put("statement_descriptor", "deposit:" + createDepositRes.result().toString());
+                  createDepositStripeSource(connection, deposit, createDepositRes -> {
+                    if (createDepositRes.succeeded()) {
 
-                    Map<String, Object> redirectParams = new HashMap<>();
-                    redirectParams.put("return_url", return_url);
+                      Map<String, Object> sourceParams = new HashMap<>();
+                      sourceParams.put("type", "ideal");
+                      sourceParams.put("currency", "eur");
+                      sourceParams.put("amount", context.getBodyAsJson().getInteger("amount"));
+                      sourceParams.put("statement_descriptor", "deposit:" + createDepositRes.result().toString());
 
-                    sourceParams.put("redirect", redirectParams);
+                      Map<String, Object> redirectParams = new HashMap<>();
+                      redirectParams.put("return_url", return_url);
 
-                    try {
-                      Source source = Source.create(sourceParams);
+                      sourceParams.put("redirect", redirectParams);
 
-                      String sourceId = source.getId();
+                      try {
+                        Source source = Source.create(sourceParams);
 
-                      updateDepositStripeSource(connection, createDepositRes.result(), sourceId, updateDepositRes -> {
-                        if (updateDepositRes.succeeded()) {
+                        String sourceId = source.getId();
 
-                          String redirect_url = source.getRedirect().getUrl();
+                        updateDepositStripeSource(connection, createDepositRes.result(), sourceId, updateDepositRes -> {
+                          if (updateDepositRes.succeeded()) {
 
-                          raise201(context, new JsonObject().put("url", redirect_url));
-                          connection.close();
+                            String redirect_url = source.getRedirect().getUrl();
 
-                        } else {
-                          raise500(context, updateDepositRes.cause());
-                          connection.close();
-                        }
-                      });
+                            raise201(context, new JsonObject().put("url", redirect_url));
+                            connection.close();
 
-                    } catch (Exception e) {
-                      raise500(context, e);
+                          } else {
+                            raise500(context, updateDepositRes.cause());
+                            connection.close();
+                          }
+                        });
+
+                      } catch (Exception e) {
+                        raise500(context, e);
+                      }
+
+                    } else {
+                      raise500(context, createDepositRes.cause());
+                      connection.close();
                     }
+                  });
 
-                  } else {
-                    raise500(context, createDepositRes.cause());
-                    connection.close();
-                  }
-                });
+                } else {
+                  raise500(context, userCardRes.cause());
+                  connection.close();
+                }
 
-              } else {
-                raise500(context, userCardRes.cause());
-                connection.close();
-              }
+              });
 
-            });
+            } else {
+              raise500(context, getConnectionRes.cause());
+            }
+          });
+        } else {
+          // Value not within limits
 
-          } else {
-            raise500(context, getConnectionRes.cause());
-          }
-        });
+          raise422(context, new InputValueViolation("amount"));
+
+        }
 
       } else {
         // An attribute is missing
