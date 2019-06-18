@@ -282,7 +282,10 @@ public class MainVerticle extends AbstractVerticle {
         .addEnabledCipherSuite("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256")
         .addEnabledCipherSuite("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256")
         .addEnabledCipherSuite("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
-        .addEnabledCipherSuite("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256");
+        .addEnabledCipherSuite("TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384")
+        .addEnabledCipherSuite("TLS_DHE_RSA_WITH_AES_256_GCM_SHA384")
+        .addEnabledCipherSuite("TLS_DHE_RSA_WITH_AES_256_CBC_SHA256")
+        .addEnabledCipherSuite("TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384");
 
       // Create the HttpServer
       vertx.createHttpServer(httpServerOptions).requestHandler(router).listen(
