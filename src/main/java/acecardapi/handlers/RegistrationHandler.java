@@ -25,7 +25,6 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.mail.MailClient;
 import io.vertx.ext.mail.MailMessage;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.redis.RedisClient;
 import io.vertx.redis.client.RedisAPI;
 
 import java.util.Arrays;
@@ -122,13 +121,7 @@ public class RegistrationHandler extends AbstractCustomHandler {
             });
 
           } else {
-            context.response()
-              .putHeader("content-type", "application/json; charset=utf-8")
-              .setStatusCode(500)
-              .end();
-
-            if (config.getBoolean("debug.enabled", false))
-              Sentry.capture(redisKeyResult.cause());
+            raise500(context, redisKeyResult.cause());
           }
         });
       } else {
@@ -173,7 +166,7 @@ public class RegistrationHandler extends AbstractCustomHandler {
           insertRedisKey(tokenValue, userId, resultHandler);
         }
       } else {
-        resultHandler.handle(Future.failedFuture(""));
+        resultHandler.handle(Future.failedFuture(redisExist.cause()));
       }
     });
   }
