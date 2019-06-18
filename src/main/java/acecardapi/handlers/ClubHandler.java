@@ -21,7 +21,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.redis.RedisClient;
 import io.vertx.redis.client.RedisAPI;
 
 import java.time.OffsetDateTime;

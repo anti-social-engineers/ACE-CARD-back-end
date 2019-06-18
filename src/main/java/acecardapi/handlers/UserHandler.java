@@ -21,6 +21,7 @@ import io.vertx.ext.web.RoutingContext;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.UUID;
 
 import static acecardapi.utils.RequestUtilities.singlePathParameterCheck;
@@ -388,6 +389,69 @@ public class UserHandler extends AbstractCustomHandler{
 
       return new JsonObject().put(type, jsonArray).put("next_cursor", (String) null);
     }
+  }
+
+  /**
+   * Function to generate graph data for spend/day for the last 30 days
+   * @return
+   */
+  public void paymentGraphData(RoutingContext context) {
+
+    dbClient.getConnection(connectionRes -> {
+      if (connectionRes.succeeded()) {
+
+        PgConnection connection = connectionRes.result();
+
+        connection.preparedQuery("SELECT id FROM cards WHERE user_id_id = $1", Tuple.of(UUID.fromString(context.user().principal().getString("sub"))), cardRes -> {
+
+          if (cardRes.succeeded()) {
+
+            PgRowSet cardResults = cardRes.result();
+
+            if (cardResults.rowCount() == 0 || cardResults.rowCount() >= 2) {
+              raise404(context);
+
+              connection.close();
+
+            } else {
+              UUID cardId = cardResults.iterator().next().getUUID("id");
+
+              connection.preparedQuery("SELECT CAST(paid_at AS DATE), SUM(amount) FROM payments WHERE paid_at > current_date - interval '30' day AND card_id_id = $1 GROUP BY CAST(paid_at AS DATE) ORDER BY CAST(paid_at AS DATE) DESC", Tuple.of(cardId), paymentRes -> {
+
+                if (paymentRes.succeeded()) {
+                  PgRowSet paymentResults = paymentRes.result();
+
+                  JsonArray jsonArray = new JsonArray();
+                  for (Row row: paymentResults) {
+                    jsonArray.add(new JsonObject().put(row.getLocalDate("paid_at").toString(), row.getNumeric("sum")));
+                  }
+
+                  raise200(context, new JsonObject().put("type", "graph_data").put("data", jsonArray));
+
+                  connection.close();
+
+                } else {
+
+                  raise500(context, paymentRes.cause());
+
+                  connection.close();
+                }
+
+              });
+
+            }
+
+          } else {
+            raise500(context, cardRes.cause());
+            connection.close();
+          }
+
+        });
+
+      } else {
+        raise500(context, connectionRes.cause());
+      }
+    });
   }
 
   public void getUsers(RoutingContext context) {
