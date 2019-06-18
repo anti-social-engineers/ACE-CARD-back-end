@@ -230,6 +230,7 @@ public class MainVerticle extends AbstractVerticle {
     router.get("/api/account/payments/:sorting/:cursor").handler(userHandler::userPayments);
     router.get("/api/account/deposits/:sorting").handler(userHandler::userDeposits);
     router.get("/api/account/deposits/:sorting/:cursor").handler(userHandler::userDeposits);
+    router.get("/api/account/graphs/payments").handler(userHandler::paymentGraphData);
 
     //// Club endpoints ////
     router.route("/api/club/scan").handler(new AuthorizationHandler(new String[]{"sysop", "club_employee"}));
