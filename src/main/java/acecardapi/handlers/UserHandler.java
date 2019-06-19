@@ -34,6 +34,7 @@ import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.UUID;
 
+import static acecardapi.utils.EmailMessages.passwordResetMail;
 import static acecardapi.utils.RequestUtilities.attributesCheckJsonObject;
 import static acecardapi.utils.RequestUtilities.singlePathParameterCheck;
 import static acecardapi.utils.StringUtilities.isString;
@@ -513,7 +514,7 @@ public class UserHandler extends AbstractCustomHandler {
 
   private void doesUserExists(String email, Handler<AsyncResult<UUID>> resultHandler) {
 
-    dbClient.preparedQuery("SELECT id FROM users WHERE email = $1", Tuple.of(email), res -> {
+    dbClient.preparedQuery("SELECT id FROM users WHERE email = $1 and is_email_verified = $2", Tuple.of(email, true), res -> {
 
       if (res.succeeded()) {
 
@@ -540,7 +541,7 @@ public class UserHandler extends AbstractCustomHandler {
     processUserExistRedis(redisClient, token, userId, res -> {
       if (res.succeeded()) {
 
-        MailMessage message = buildPasswordResetMail(email, res.result());
+        MailMessage message = passwordResetMail(email, res.result(), config.getString("password.reset_link", ""));
 
         mailClient.sendMail(message, result -> {
           if (result.succeeded()) {
@@ -569,7 +570,7 @@ public class UserHandler extends AbstractCustomHandler {
         else {
           redisClient.set(Arrays.asList(tokenValue, userId.toString()), redisSetRes -> {
             if (redisSetRes.succeeded()) {
-              redisClient.expire(tokenValue, config.getLong("pass.forgot_exptime", 3600L).toString(), redisExpireRes -> {
+              redisClient.expire(tokenValue, config.getLong("password.forgot_exptime", 3600L).toString(), redisExpireRes -> {
                 if (redisExpireRes.succeeded()) {
                   resultHandler.handle(Future.succeededFuture(tokenValue));
                 } else {
@@ -585,25 +586,6 @@ public class UserHandler extends AbstractCustomHandler {
         resultHandler.handle(Future.failedFuture(redisExist.cause()));
       }
     });
-  }
-
-  private MailMessage buildPasswordResetMail(String destinationMail, String resetToken) {
-
-    String html = String.format("" +
-      "Beste klant, <br/><br/>" +
-      "U heeft bij ons aangegeven dat u uw wachtwoord bent vergeten. <br/>" +
-      "U kunt een nieuw wachtwoord instellen via de onderstaande link: <br/>" +
-      "%s", resetToken) +
-      "<br/>" +
-      "Bent u dit niet geweest? Neem dan direct contact op met onze klantenservice!";
-
-    MailMessage message = new MailMessage();
-    message.setFrom("noreply@aceofclubs.nl");
-    message.setTo(destinationMail);
-    message.setSubject("Email verificatie - ACE Card.");
-    message.setHtml(html);
-
-    return message;
   }
 
   public void processResetPassword(RoutingContext context) {

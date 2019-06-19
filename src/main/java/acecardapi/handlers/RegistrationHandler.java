@@ -31,6 +31,8 @@ import io.vertx.redis.client.RedisAPI;
 import java.util.Arrays;
 import java.util.UUID;
 
+import static acecardapi.utils.EmailMessages.registrationMail;
+
 public class RegistrationHandler extends AbstractCustomHandler {
 
   private ReactiveAuth authProvider;
@@ -100,7 +102,7 @@ public class RegistrationHandler extends AbstractCustomHandler {
           if (redisKeyResult.succeeded()) {
             String key = redisKeyResult.result();
 
-            MailMessage message = buildRegistrationMail(users.getEmail(), key);
+            MailMessage message = registrationMail(users.getEmail(), key, config.getString("mail.activation_link", ""));
 
             context.response()
               .putHeader("content-type", "application/json; charset=utf-8")
@@ -194,22 +196,5 @@ public class RegistrationHandler extends AbstractCustomHandler {
       }
     });
 
-  }
-
-  private MailMessage buildRegistrationMail(String destinationMail, String registrationKey) {
-
-    String html = String.format("" +
-      "Beste klant, <br/><br/>" +
-      "Bedankt voor het registreren van uw account. <br/>" +
-      "U moet uw account nog activeren, dit kunt u doen door op de onderstaande link te klikken: <br/>" +
-      "%s", registrationKey);
-
-    MailMessage message = new MailMessage();
-    message.setFrom("noreply@aceofclubs.nl");
-    message.setTo(destinationMail);
-    message.setSubject("Email verificatie - ACE Card.");
-    message.setHtml(html);
-
-    return message;
   }
 }
