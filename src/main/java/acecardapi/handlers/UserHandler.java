@@ -9,27 +9,48 @@
 package acecardapi.handlers;
 
 import acecardapi.apierrors.InputFormatViolation;
+import acecardapi.apierrors.InputLengthFormatViolation;
 import acecardapi.apierrors.ParameterNotFoundViolation;
+import acecardapi.auth.ReactiveAuth;
 import acecardapi.models.Account;
 import acecardapi.models.Deposit;
 import acecardapi.models.Payment;
 import acecardapi.models.Users;
+import acecardapi.utils.RandomToken;
+import acecardapi.utils.RedisUtils;
 import io.reactiverse.pgclient.*;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.mail.MailClient;
+import io.vertx.ext.mail.MailMessage;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.redis.client.RedisAPI;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.UUID;
 
+import static acecardapi.utils.EmailMessages.passwordResetMail;
+import static acecardapi.utils.RequestUtilities.attributesCheckJsonObject;
 import static acecardapi.utils.RequestUtilities.singlePathParameterCheck;
+import static acecardapi.utils.StringUtilities.isString;
 
-public class UserHandler extends AbstractCustomHandler{
+public class UserHandler extends AbstractCustomHandler {
 
-  public UserHandler(PgPool dbClient, JsonObject config) {
+  private String[] requiredAttributesPasswordForget = new String[]{"mail"};
+  private String[] requiredAttributesPasswordResetProcess = new String[]{"token", "password"};
+
+  private MailClient mailClient;
+  private ReactiveAuth authProvider;
+
+  public UserHandler(PgPool dbClient, JsonObject config, MailClient mailClient, ReactiveAuth authProvider) {
     super(dbClient, config);
+    this.mailClient = mailClient;
+    this.authProvider = authProvider;
   }
 
   public void getUserData(RoutingContext context) {
@@ -393,7 +414,7 @@ public class UserHandler extends AbstractCustomHandler{
 
   /**
    * Function to generate graph data for spend/day for the last 30 days
-   * @return
+   * @return void
    */
   public void paymentGraphData(RoutingContext context) {
 
@@ -452,6 +473,176 @@ public class UserHandler extends AbstractCustomHandler{
         raise500(context, connectionRes.cause());
       }
     });
+  }
+
+  /**
+   * Function to reset a forgotten password
+   * @return void
+   */
+  public void passwordReset(RoutingContext context) {
+
+    attributesCheckJsonObject(context.getBodyAsJson(), requiredAttributesPasswordForget, attributeRes -> {
+
+      if (attributeRes.succeeded()) {
+
+        if (isString(context.getBodyAsJson().getValue("mail"))) {
+
+          doesUserExists(context.getBodyAsJson().getString("mail"), existRes -> {
+            if (existRes.succeeded()) {
+
+              if (existRes.result() == null) {
+                raise404(context);
+              } else {
+                processUserExists(context, context.getBodyAsJson().getString("mail"), existRes.result());
+              }
+
+            } else {
+              raise500(context, existRes.cause());
+            }
+          });
+        } else {
+          raise422(context, new InputFormatViolation("mail"));
+        }
+
+      } else {
+        raise422(context, new ParameterNotFoundViolation(attributeRes.cause().getMessage()));
+      }
+
+    });
+
+  }
+
+  private void doesUserExists(String email, Handler<AsyncResult<UUID>> resultHandler) {
+
+    dbClient.preparedQuery("SELECT id FROM users WHERE email = $1 and is_email_verified = $2", Tuple.of(email, true), res -> {
+
+      if (res.succeeded()) {
+
+        if (res.result().rowCount() <= 0 || res.result().rowCount() >= 2) {
+          resultHandler.handle(Future.succeededFuture(null));
+        } else {
+          resultHandler.handle(Future.succeededFuture(res.result().iterator().next().getUUID("id")));
+        }
+
+      } else {
+        resultHandler.handle(Future.failedFuture(res.cause()));
+      }
+
+    });
+
+  }
+
+  private void processUserExists(RoutingContext context, String email, UUID userId) {
+
+    RandomToken token = new RandomToken(48);
+
+    RedisAPI redisClient = RedisAPI.api(RedisUtils.backEndRedis);
+
+    processUserExistRedis(redisClient, token, userId, res -> {
+      if (res.succeeded()) {
+
+        MailMessage message = passwordResetMail(email, res.result(), config.getString("password.reset_link", ""));
+
+        mailClient.sendMail(message, result -> {
+          if (result.succeeded()) {
+            raise200(context);
+          } else {
+            raise500(context, result.cause());
+          }
+        });
+
+      } else {
+        raise500(context, res.cause());
+      }
+    });
+
+  }
+
+  private void processUserExistRedis(RedisAPI redisClient, RandomToken token, UUID userId, Handler<AsyncResult<String>> resultHandler) {
+
+    String tokenValue = token.nextString();
+
+    redisClient.exists(Arrays.asList(tokenValue), redisExist -> {
+      if (redisExist.succeeded()) {
+        if (redisExist.result().toInteger() == 1) {
+          processUserExistRedis(redisClient, token, userId, resultHandler);
+        }
+        else {
+          redisClient.set(Arrays.asList(tokenValue, userId.toString()), redisSetRes -> {
+            if (redisSetRes.succeeded()) {
+              redisClient.expire(tokenValue, config.getLong("password.forgot_exptime", 3600L).toString(), redisExpireRes -> {
+                if (redisExpireRes.succeeded()) {
+                  resultHandler.handle(Future.succeededFuture(tokenValue));
+                } else {
+                  resultHandler.handle(Future.failedFuture(redisExpireRes.cause()));
+                }
+              });
+            } else {
+              resultHandler.handle(Future.failedFuture(redisSetRes.cause()));
+            }
+          });
+        }
+      } else {
+        resultHandler.handle(Future.failedFuture(redisExist.cause()));
+      }
+    });
+  }
+
+  public void processResetPassword(RoutingContext context) {
+
+    attributesCheckJsonObject(context.getBodyAsJson(), requiredAttributesPasswordResetProcess, attRes -> {
+      if (attRes.succeeded()) {
+
+        if (!isString(context.getBodyAsJson().getValue("token"))) {
+          raise422(context, new InputFormatViolation("token"));
+        } else if (!isString(context.getBodyAsJson().getValue("password"))) {
+          raise422(context, new InputFormatViolation("password"));
+        } else if (context.getBodyAsJson().getString("password").length() < config.getInteger("password.length", 8)) {
+          raise422(context, new InputLengthFormatViolation("password"));
+        } else {
+          RedisAPI redisAPI = RedisAPI.api(RedisUtils.backEndRedis);
+
+          redisAPI.get(context.getBodyAsJson().getString("token"), redisRes -> {
+            if (redisRes.succeeded()) {
+
+              if (redisRes.result() == null) {
+                raise404(context);
+              } else {
+                UUID userId = UUID.fromString(redisRes.result().toString());
+
+                String newSalt = authProvider.generateSalt();
+                String newPasswordHash = authProvider.computeHash(context.getBodyAsJson().getString("password"), newSalt);
+
+                // Update the user with new hash + salt
+                dbClient.preparedQuery("UPDATE users SET password = $1, password_salt = $2 WHERE id = $3", Tuple.of(newPasswordHash, newSalt, userId), updateUserRes -> {
+                  if (updateUserRes.succeeded()) {
+
+                    if (updateUserRes.result().rowCount() != 1) {
+                      raise500(context, new Exception("[ResetPasswordProcess] Updated but no row was changed."));
+                    } else {
+                      raise200(context);
+
+                      // If DEL fails, it should not matter: it will expire within 60 minutes
+                      redisAPI.del(Arrays.asList(context.getBodyAsJson().getString("token")), delRedisRes -> {});
+                    }
+
+                  } else {
+                    raise500(context, updateUserRes.cause());
+                  }
+                });
+              }
+
+            } else {
+              raise500(context, redisRes.cause());
+            }
+          });
+        }
+
+      } else {
+        raise422(context, new ParameterNotFoundViolation(attRes.cause().getMessage()));
+      }
+    });
+
   }
 
   public void getUsers(RoutingContext context) {

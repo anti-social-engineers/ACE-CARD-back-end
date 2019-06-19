@@ -27,4 +27,8 @@ public class StringUtilities {
     return decimalFormat.format(value);
   }
 
+  public static <T> boolean isString(T value) {
+    return value instanceof String;
+  }
+
 }
