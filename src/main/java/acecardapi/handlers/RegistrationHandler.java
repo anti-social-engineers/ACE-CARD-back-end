@@ -9,6 +9,7 @@
 package acecardapi.handlers;
 
 import acecardapi.apierrors.InputFormatViolation;
+import acecardapi.apierrors.InputLengthFormatViolation;
 import acecardapi.apierrors.UniqueViolation;
 import acecardapi.auth.ReactiveAuth;
 import acecardapi.models.Users;
@@ -25,11 +26,12 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.mail.MailClient;
 import io.vertx.ext.mail.MailMessage;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.redis.RedisClient;
 import io.vertx.redis.client.RedisAPI;
 
 import java.util.Arrays;
 import java.util.UUID;
+
+import static acecardapi.utils.EmailMessages.registrationMail;
 
 public class RegistrationHandler extends AbstractCustomHandler {
 
@@ -49,7 +51,11 @@ public class RegistrationHandler extends AbstractCustomHandler {
 
       Users users = Json.decodeValue(context.getBodyAsString(), Users.class);
 
-      this.createUser(context, users);
+      if (users.getPassword().length() < config.getInteger("password.length", 8)) {
+        raise422(context, new InputLengthFormatViolation("password"));
+      } else {
+        createUser(context, users);
+      }
 
     } catch (Exception e) {
 
@@ -96,7 +102,7 @@ public class RegistrationHandler extends AbstractCustomHandler {
           if (redisKeyResult.succeeded()) {
             String key = redisKeyResult.result();
 
-            MailMessage message = buildRegistrationMail(users.getEmail(), key);
+            MailMessage message = registrationMail(users.getEmail(), key, config.getString("mail.activation_link", ""));
 
             context.response()
               .putHeader("content-type", "application/json; charset=utf-8")
@@ -122,13 +128,7 @@ public class RegistrationHandler extends AbstractCustomHandler {
             });
 
           } else {
-            context.response()
-              .putHeader("content-type", "application/json; charset=utf-8")
-              .setStatusCode(500)
-              .end();
-
-            if (config.getBoolean("debug.enabled", false))
-              Sentry.capture(redisKeyResult.cause());
+            raise500(context, redisKeyResult.cause());
           }
         });
       } else {
@@ -173,7 +173,7 @@ public class RegistrationHandler extends AbstractCustomHandler {
           insertRedisKey(tokenValue, userId, resultHandler);
         }
       } else {
-        resultHandler.handle(Future.failedFuture(""));
+        resultHandler.handle(Future.failedFuture(redisExist.cause()));
       }
     });
   }
@@ -196,22 +196,5 @@ public class RegistrationHandler extends AbstractCustomHandler {
       }
     });
 
-  }
-
-  private MailMessage buildRegistrationMail(String destinationMail, String registrationKey) {
-
-    String html = String.format("" +
-      "Beste klant, <br/><br/>" +
-      "Bedankt voor het registreren van uw account. <br/>" +
-      "U moet uw account nog activeren, dit kunt u doen door op de onderstaande link te klikken: <br/>" +
-      "%s", registrationKey);
-
-    MailMessage message = new MailMessage();
-    message.setFrom("noreply@aceofclubs.nl");
-    message.setTo(destinationMail);
-    message.setSubject("Email verificatie - ACE Card.");
-    message.setHtml(html);
-
-    return message;
   }
 }

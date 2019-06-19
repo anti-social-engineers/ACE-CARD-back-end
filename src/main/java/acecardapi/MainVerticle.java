@@ -144,7 +144,7 @@ public class MainVerticle extends AbstractVerticle {
      */
 
     // UserHandler
-    UserHandler userHandler = new UserHandler(dbClient,config());
+    UserHandler userHandler = new UserHandler(dbClient,config(), mailClient, authProvider);
     // RegistrationHandler
     RegistrationHandler registrationHandler = new RegistrationHandler(dbClient, config(), authProvider, mailClient);
     // LoginHandler
@@ -217,8 +217,14 @@ public class MainVerticle extends AbstractVerticle {
     router.post("/api/login").handler(loginHandler::login);
     router.get("/api/activate/:activationkey").handler(activationHandler::activateUser);
 
-    //// logout endpoints ////
+    //// Logout endpoints ////
     router.post("/api/logout").handler(logoutHandler::logout);
+
+    //// Password forgotten endpoints ////
+    router.post("/api/passwordreset").handler(BodyHandler.create(false));
+    router.post("/api/passwordreset").handler(userHandler::passwordReset);
+    router.post("/api/passwordreset/process").handler(BodyHandler.create(false));
+    router.post("/api/passwordreset/process").handler(userHandler::processResetPassword);
 
     //// User Management ////
     router.route("/api/users").handler(new AuthorizationHandler(new String[]{"sysop"}));

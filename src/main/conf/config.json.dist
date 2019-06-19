@@ -18,6 +18,7 @@
   "mail.port" : ,
   "mail.user" : "",
   "mail.pass" : "",
+  "mail.activation_link" "",
   "card.encryptionkey" : "",
   "debug.enabled" : ,
   "debug.dsn" : "",
@@ -29,5 +30,8 @@
   "card.failed_attempts_expiration" :,
   "queries.max_return_size" :,
   "realtime.redis.host": "",
-  "realtime.redis.auth": ""
+  "realtime.redis.auth": "",
+  "password.reset_link": "",
+  "password.forgot_exptime": ,
+  "password.length":
 }

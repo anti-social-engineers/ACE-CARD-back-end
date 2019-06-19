@@ -385,8 +385,8 @@ public class CardHandler extends AbstractCustomHandler{
   }
 
   /**
-   Function which checks
-   @param uploads all the uploaded files
+   Function which checks if value is an number
+   @param number value
    @param resultHandler handles further async processing
    @return void
    */
