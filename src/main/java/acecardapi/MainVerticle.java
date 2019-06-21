@@ -108,15 +108,15 @@ public class MainVerticle extends AbstractVerticle {
     //TODO SETTINGS
     RedisOptions backEndRedisOptions = new RedisOptions()
       .setNetClientOptions(new NetClientOptions()
-        .setIdleTimeout(10));
-    Redis.createClient(vertx, backEndRedisOptions).connect(connectRes -> {
-      if (connectRes.succeeded()) {
-        RedisUtils.backEndRedis = connectRes.result();
-        RedisUtils.backEndRedis.exceptionHandler(e -> attemptReconnectRedis(vertx, 0, backEndRedisOptions, true));
-      } else {
-        System.out.println("!!! Redis is down !!!");
-      }
-    });
+        .setIdleTimeout(30));
+//    Redis.createClient(vertx, backEndRedisOptions).connect(connectRes -> {
+//      if (connectRes.succeeded()) {
+//        RedisUtils.backEndRedis = connectRes.result();
+//        RedisUtils.backEndRedis.exceptionHandler(e -> attemptReconnectRedis(vertx, 0, backEndRedisOptions, true));
+//      } else {
+//        System.out.println("!!! Redis is down !!!");
+//      }
+//    });
 
     /*
     Setup Redis for frontend realtime notifcations
@@ -125,15 +125,15 @@ public class MainVerticle extends AbstractVerticle {
       .setEndpoint(SocketAddress.inetSocketAddress(config().getInteger("realtime.redis.port", 6379), config().getString("realtime.redis.host", "127.0.0.1")))
       .setPassword(config().getString("realtime.auth", null))
       .setNetClientOptions(new NetClientOptions()
-      .setIdleTimeout(10));
-    Redis.createClient(vertx, frontEndRedisOptions).connect(connectRes -> {
-      if (connectRes.succeeded()) {
-        RedisUtils.frontEndRedis = connectRes.result();
-        RedisUtils.frontEndRedis.exceptionHandler(e -> attemptReconnectRedis(vertx, 0, frontEndRedisOptions, false));
-      } else {
-        System.out.println("!!! [FRONTEND] Redis is down !!!");
-      }
-    });
+      .setIdleTimeout(30));
+//    Redis.createClient(vertx, frontEndRedisOptions).connect(connectRes -> {
+//      if (connectRes.succeeded()) {
+//        RedisUtils.frontEndRedis = connectRes.result();
+//        RedisUtils.frontEndRedis.exceptionHandler(e -> attemptReconnectRedis(vertx, 0, frontEndRedisOptions, false));
+//      } else {
+//        System.out.println("!!! [FRONTEND] Redis is down !!!");
+//      }
+//    });
 
     RedisUtils.backEndRedisOptions = backEndRedisOptions;
     RedisUtils.frontEndRedisOptions = frontEndRedisOptions;
