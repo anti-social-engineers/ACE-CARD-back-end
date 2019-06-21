@@ -426,16 +426,7 @@ public class CardHandler extends AbstractCustomHandler{
 
         JsonArray jsonArray = res.result();
 
-        context.response()
-          .setStatusCode(200)
-          .putHeader("Cache-Control", "no-store, no-cache")
-          .putHeader("X-Content-Type-Options", "nosniff")
-          .putHeader("Strict-Transport-Security", "max-age=" + 15768000)
-          .putHeader("X-Download-Options", "noopen")
-          .putHeader("X-XSS-Protection", "1; mode=block")
-          .putHeader("X-FRAME-OPTIONS", "DENY")
-          .putHeader("content-type", "application/json; charset=utf-8")
-          .end(Json.encodePrettily(jsonArray));
+        raise200(context, jsonArray);
 
       } else {
         // DB issue
@@ -514,23 +505,30 @@ public class CardHandler extends AbstractCustomHandler{
             Row userRow = userRes.result().iterator().next();
             UUID userId = userRow.getUUID("id");
 
-            connection.preparedQuery("UPDATE CARDS SET card_code=$1, pin=$2, pin_salt=$3, is_activated=$4, activated_at=$5 WHERE user_id_id=$6", Tuple.of(card.getCard_code(), card.getHashedPin(), card.getSalt(), true, OffsetDateTime.now(), userId), cardRes -> {
-              if (cardRes.succeeded()) {
+            //Check if card with this code already exists
+            connection.preparedQuery("SELECT id FROM cards WHERE card_code=$1", Tuple.of(card.getCard_code()), existCardRes -> {
+              if (existCardRes.succeeded()) {
 
-                // Generate json response:
-                JsonObject jsonObject = new JsonObject()
-                  .put("pin", card.getPin());
-
-                raise201(context, jsonObject);
-
-                connection.close();
+                if (existCardRes.result().rowCount() >= 1) {
+                  // First set to null
+                  connection.preparedQuery("UPDATE cards SET card_code = $1 WHERE id = $2", Tuple.of(null, existCardRes.result().iterator().next().getUUID("id")), setCardNullRes -> {
+                    if (setCardNullRes.succeeded()) {
+                      setCardCode(context, connection, card, userId);
+                    } else {
+                      raise500(context, setCardNullRes.cause());
+                      connection.close();
+                    }
+                  });
+                } else {
+                  // Set card code
+                  setCardCode(context, connection, card, userId);
+                }
 
               } else {
-                raise500(context, cardRes.cause());
+                raise500(context, existCardRes.cause());
                 connection.close();
               }
             });
-
 
           } else {
             raise500(context, userRes.cause());
@@ -543,6 +541,25 @@ public class CardHandler extends AbstractCustomHandler{
       }
     });
 
+  }
+
+  private void setCardCode(RoutingContext context, PgConnection connection, Card card, UUID userId) {
+    connection.preparedQuery("UPDATE CARDS SET card_code=$1, pin=$2, pin_salt=$3, is_activated=$4, activated_at=$5 WHERE user_id_id=$6", Tuple.of(card.getCard_code(), card.getHashedPin(), card.getSalt(), true, OffsetDateTime.now(), userId), cardRes -> {
+      if (cardRes.succeeded()) {
+
+        // Generate json response:
+        JsonObject jsonObject = new JsonObject()
+          .put("pin", card.getPin());
+
+        raise201(context, jsonObject);
+
+        connection.close();
+
+      } else {
+        raise500(context, cardRes.cause());
+        connection.close();
+      }
+    });
   }
 
   private void moveFile(FileUpload file, Handler<AsyncResult<Boolean>> resultHandler) {
