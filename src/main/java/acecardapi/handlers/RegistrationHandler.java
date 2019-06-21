@@ -26,12 +26,14 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.mail.MailClient;
 import io.vertx.ext.mail.MailMessage;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.redis.client.Redis;
 import io.vertx.redis.client.RedisAPI;
 
 import java.util.Arrays;
 import java.util.UUID;
 
 import static acecardapi.utils.EmailMessages.registrationMail;
+import static acecardapi.utils.RedisUtils.getRedisConnection;
 
 public class RegistrationHandler extends AbstractCustomHandler {
 
@@ -161,40 +163,64 @@ public class RegistrationHandler extends AbstractCustomHandler {
 
     String tokenValue = token.nextString();
 
-    RedisAPI redisClient = RedisAPI.api(RedisUtils.backEndRedis);
+    getRedisConnection(true, redisConnectionRes -> {
 
-    redisClient.exists(Arrays.asList(tokenValue),redisExist -> {
-      if (redisExist.succeeded()) {
-        System.out.println(redisExist.result().toInteger());
-        if (redisExist.result().toInteger() == 1) {
-          generateRedisKey(token, userId, resultHandler);
-        }
-        else {
-          insertRedisKey(tokenValue, userId, resultHandler);
-        }
+      if (redisConnectionRes.succeeded()) {
+
+        Redis redisConnection = redisConnectionRes.result();
+
+        RedisAPI redisClient = RedisAPI.api(redisConnection);
+
+        redisClient.exists(Arrays.asList(tokenValue),redisExist -> {
+          if (redisExist.succeeded()) {
+            System.out.println(redisExist.result().toInteger());
+            if (redisExist.result().toInteger() == 1) {
+              redisConnection.close();
+              generateRedisKey(token, userId, resultHandler);
+            }
+            else {
+              redisConnection.close();
+              insertRedisKey(tokenValue, userId, resultHandler);
+            }
+          } else {
+            redisConnection.close();
+            resultHandler.handle(Future.failedFuture(redisExist.cause()));
+          }
+        });
       } else {
-        resultHandler.handle(Future.failedFuture(redisExist.cause()));
+        resultHandler.handle(Future.failedFuture(redisConnectionRes.cause()));
       }
+
     });
   }
 
   private void insertRedisKey(String tokenValue, UUID userId, Handler<AsyncResult<String>> resultHandler) {
 
-    RedisAPI redisClient = RedisAPI.api(RedisUtils.backEndRedis);
+    getRedisConnection(true, redisConnectionRes -> {
+      if (redisConnectionRes.succeeded()) {
+        Redis redisConnection = redisConnectionRes.result();
 
-    redisClient.set(Arrays.asList(tokenValue, userId.toString()), res -> {
-      if (res.succeeded()) {
-        redisClient.expire(tokenValue, this.config.getLong("registration.code_expire_time", 32400L).toString(), expireRes -> {
-          if (expireRes.succeeded()) {
-            resultHandler.handle(Future.succeededFuture(tokenValue));
+        RedisAPI redisClient = RedisAPI.api(redisConnection);
+
+        redisClient.set(Arrays.asList(tokenValue, userId.toString()), res -> {
+          if (res.succeeded()) {
+            redisClient.expire(tokenValue, this.config.getLong("registration.code_expire_time", 32400L).toString(), expireRes -> {
+              if (expireRes.succeeded()) {
+                redisConnection.close();
+                resultHandler.handle(Future.succeededFuture(tokenValue));
+              } else {
+                redisConnection.close();
+                resultHandler.handle(Future.failedFuture(""));
+              }
+            });
           } else {
-            resultHandler.handle(Future.failedFuture(""));
+            redisConnection.close();
+            resultHandler.handle(Future.failedFuture(res.cause()));
           }
         });
       } else {
-        resultHandler.handle(Future.failedFuture(""));
+        resultHandler.handle(Future.failedFuture(redisConnectionRes.cause()));
       }
     });
-
   }
 }

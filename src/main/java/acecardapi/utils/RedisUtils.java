@@ -30,6 +30,9 @@ public class RedisUtils {
   public static Redis backEndRedis;
   public static Redis frontEndRedis;
   private static int MAX_REDIS_RECONNECT_ATTEMPTS = 30;
+  private static Vertx vertx;
+  public static RedisOptions backEndRedisOptions;
+  public static RedisOptions frontEndRedisOptions;
 
   public static void attemptReconnectRedis(Vertx vertx, int retry, RedisOptions redisOptions, boolean isBackendRedis){
     System.out.println("REDIS DOWN, RECONNECTING... IS_BACK_END_REDIS: " + isBackendRedis);
@@ -89,7 +92,23 @@ public class RedisUtils {
     }
   }
 
-  public static void getBackendRedisClient(Handler<AsyncResult<String>> resultHandler) {
+  public static void getRedisConnection(boolean isBackend, Handler<AsyncResult<Redis>> resultHandler) {
+
+    RedisOptions redisOptions = null;
+    if (isBackend) {
+      redisOptions = backEndRedisOptions;
+    }
+    else {
+      redisOptions = frontEndRedisOptions;
+    }
+    Redis.createClient(vertx, redisOptions).connect(connectRes -> {
+      if (connectRes.succeeded()) {
+        resultHandler.handle(Future.succeededFuture(connectRes.result()));
+      } else {
+        System.out.println("!!! Redis is down !!!");
+        resultHandler.handle(Future.failedFuture(connectRes.cause()));
+      }
+    });
 
   }
 }

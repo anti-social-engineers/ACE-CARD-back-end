@@ -21,6 +21,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.redis.client.Redis;
 import io.vertx.redis.client.RedisAPI;
 
 import java.time.OffsetDateTime;
@@ -30,6 +31,7 @@ import java.util.UUID;
 
 import static acecardapi.utils.AceCardDecrypter.decrypt;
 import static acecardapi.utils.NumberUtilities.*;
+import static acecardapi.utils.RedisUtils.getRedisConnection;
 import static acecardapi.utils.RedisUtils.realTimeRedisLPUSH;
 import static acecardapi.utils.RequestUtilities.attributesCheckJsonObject;
 
@@ -182,29 +184,42 @@ public class ClubHandler extends AbstractCustomHandler{
 
               String redisKey = "pin_attempt:" + decryptedCardCode;
 
-              RedisAPI redisClient = RedisAPI.api(RedisUtils.backEndRedis);
+              getRedisConnection(true, redisConnectionRes -> {
 
-              redisClient.get(redisKey, redisKeyRes -> {
-                if (redisKeyRes.succeeded()) {
+                if (redisConnectionRes.succeeded()) {
 
-                  String attempts = null;
-                  if (redisKeyRes.result() != null) {
-                    attempts = redisKeyRes.result().toString();
-                  }
+                  Redis redisConnection = redisConnectionRes.result();
 
-                  if (attempts == null || Integer.parseInt(attempts) < config.getInteger("card.max_tries", 3)) {
+                  RedisAPI redisClient = RedisAPI.api(redisConnection);
 
-                    processCardPayment(context, redisClient, jsonBody, decryptedCardCode, attempts, redisKey);
+                  redisClient.get(redisKey, redisKeyRes -> {
+                    if (redisKeyRes.succeeded()) {
 
-                  } else {
+                      String attempts = null;
+                      if (redisKeyRes.result() != null) {
+                        attempts = redisKeyRes.result().toString();
+                      }
 
-                    raise429(context, new TooManyFailedAttemptsViolation());
+                      if (attempts == null || Integer.parseInt(attempts) < config.getInteger("card.max_tries", 3)) {
 
-                  }
+                        processCardPayment(context, redisConnection, jsonBody, decryptedCardCode, attempts, redisKey);
 
+                      } else {
+
+                        redisConnection.close();
+                        raise429(context, new TooManyFailedAttemptsViolation());
+
+                      }
+
+                    } else {
+                      redisConnection.close();
+                      raise500(context, redisKeyRes.cause());
+                    }
+                  });
                 } else {
-                  raise500(context, redisKeyRes.cause());
+                  raise500(context, redisConnectionRes.cause());
                 }
+
               });
 
             } else {
@@ -227,14 +242,14 @@ public class ClubHandler extends AbstractCustomHandler{
   /**
    Function which further processes a payment with an ACE-card
    @param context contains information about the request
-   @param redisClient API for talking with redis
+   @param redisConnection open connection to redis
    @param requestBody JsonObject which contains the request body as json
    @param decryptedCardCode the card_code but decrypted
    @param attempts how many attempts have already been made
    @param attemptsCode the code used to register attempts on
    @return void
    */
-  private void processCardPayment(RoutingContext context, RedisAPI redisClient, JsonObject requestBody, String decryptedCardCode, String attempts, String attemptsCode) {
+  private void processCardPayment(RoutingContext context, Redis redisConnection, JsonObject requestBody, String decryptedCardCode, String attempts, String attemptsCode) {
 
     dbClient.getConnection(getConnectionRes -> {
 
@@ -252,6 +267,7 @@ public class ClubHandler extends AbstractCustomHandler{
 
             if (result.rowCount() <= 0 || result.rowCount() >= 2) {
               // No card found
+              redisConnection.close();
               raise404(context);
               connection.close();
 
@@ -260,6 +276,7 @@ public class ClubHandler extends AbstractCustomHandler{
               Row row = result.iterator().next();
 
               if (row.getBoolean("is_blocked")) {
+                redisConnection.close();
                 BlockedViolation error = new BlockedViolation("Card is suspended.");
                 raise403(context, error);
                 connection.close();
@@ -268,13 +285,16 @@ public class ClubHandler extends AbstractCustomHandler{
                 raise401(context, error);
                 connection.close();
 
-                addPINAttempt(attempts, attemptsCode, redisClient);
+                addPINAttempt(attempts, attemptsCode, redisConnection);
 
               } else if (requestBody.getDouble("amount") > row.getNumeric("credits").doubleValue()){
+                redisConnection.close();
                 CreditsViolaton error = new CreditsViolaton("Not enough credits.");
                 raise400(context, error);
                 connection.close();
               } else {
+
+                redisConnection.close();
 
                 Payment payment = new Payment(requestBody.getDouble("amount"), row.getUUID("id"), UUID.fromString(requestBody.getString("club_id")));
 
@@ -286,10 +306,18 @@ public class ClubHandler extends AbstractCustomHandler{
 
                     connection.close();
 
-                    RedisAPI realTimeRedisClient = RedisAPI.api(RedisUtils.frontEndRedis);
+                    getRedisConnection(false, redisConnectionRes -> {
+                      if (redisConnectionRes.succeeded()) {
 
-                    realTimeRedisLPUSH(realTimeRedisClient, row.getUUID("user_id_id"), "transaction", requestBody.getDouble("amount"), row.getNumeric("credits").doubleValue() - requestBody.getDouble("amount"), OffsetDateTime.now(), redisRes -> {
-                      System.out.println(redisRes.result());
+                        Redis frontEndRedisConnection = redisConnectionRes.result();
+
+                        RedisAPI realTimeRedisClient = RedisAPI.api(frontEndRedisConnection);
+
+                        realTimeRedisLPUSH(realTimeRedisClient, row.getUUID("user_id_id"), "transaction", requestBody.getDouble("amount"), row.getNumeric("credits").doubleValue() - requestBody.getDouble("amount"), OffsetDateTime.now(), redisRes -> {
+                          System.out.println(redisRes.result());
+                          frontEndRedisConnection.close();
+                        });
+                      }
                     });
 
                   } else {
@@ -303,12 +331,14 @@ public class ClubHandler extends AbstractCustomHandler{
             }
 
           } else {
+            redisConnection.close();
             raise500(context, cardRes.cause());
             connection.close();
           }
 
         });
       } else {
+        redisConnection.close();
         raise500(context, getConnectionRes.cause());
       }
 
@@ -365,7 +395,7 @@ public class ClubHandler extends AbstractCustomHandler{
    @param attemptsCode the code used to track attempts
    @return void
    */
-  private void addPINAttempt(String attempts, String attemptsCode, RedisAPI redisClient) {
+  private void addPINAttempt(String attempts, String attemptsCode, Redis redisConnection) {
 
     int attemptsNumber;
 
@@ -375,10 +405,15 @@ public class ClubHandler extends AbstractCustomHandler{
     else
       attemptsNumber = 1;
 
+    RedisAPI redisClient = RedisAPI.api(redisConnection);
+
     redisClient.set(Arrays.asList(attemptsCode, Integer.toString(attemptsNumber)),redisSetRes -> {
       if (redisSetRes.succeeded()) {
         redisClient.expire(attemptsCode, config.getLong("card.failed_attempts_expiration", 3600L).toString(), expireRedisRes -> {
+          redisConnection.close();
         });
+      } else {
+        redisConnection.close();
       }
     });
   }

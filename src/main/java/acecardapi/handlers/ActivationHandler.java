@@ -22,10 +22,13 @@ import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.redis.RedisClient;
+import io.vertx.redis.client.Redis;
 import io.vertx.redis.client.RedisAPI;
 
 import java.util.Arrays;
 import java.util.UUID;
+
+import static acecardapi.utils.RedisUtils.getRedisConnection;
 
 public class ActivationHandler extends AbstractCustomHandler {
 
@@ -52,48 +55,60 @@ public class ActivationHandler extends AbstractCustomHandler {
 
     } else {
 
+      getRedisConnection(true, redisConnectionRes -> {
 
-      RedisAPI redisClient = RedisAPI.api(RedisUtils.backEndRedis);
+        if (redisConnectionRes.succeeded()) {
+          Redis redisConnection = redisConnectionRes.result();
 
-      redisClient.get(activationKey, res -> {
-        if (res.succeeded()) {
+          RedisAPI redisClient = RedisAPI.api(redisConnection);
 
-          String stringId = null;
-          if (res.result() != null) {
-            stringId = res.result().toString();
-          }
+          redisClient.get(activationKey, res -> {
+            if (res.succeeded()) {
 
-          if (stringId == null) {
-            raise404(context, new ParameterNotFoundViolation("activationkey"));
-          } else {
+              String stringId = null;
+              if (res.result() != null) {
+                stringId = res.result().toString();
+              }
 
-            UUID userId = UUID.fromString(stringId);
+              if (stringId == null) {
+                redisConnection.close();
+                raise404(context, new ParameterNotFoundViolation("activationkey"));
+              } else {
 
-            activateDatabaseUser(userId, updateResult -> {
-              if (updateResult.succeeded()) {
+                UUID userId = UUID.fromString(stringId);
 
-                // Account updated to have activated email
-                raise200(context);
+                activateDatabaseUser(userId, updateResult -> {
+                  if (updateResult.succeeded()) {
 
-                // Delete the key afterwards
-                redisClient.del(Arrays.asList(activationKey),unlinkRes -> {
-                  if (unlinkRes.succeeded()) {
-                    System.out.println("Unlinking success");
+                    // Account updated to have activated email
+                    raise200(context);
+
+                    // Delete the key afterwards
+                    redisClient.del(Arrays.asList(activationKey),unlinkRes -> {
+                      if (unlinkRes.succeeded()) {
+                        System.out.println("Unlinking success");
+                      } else {
+                        System.out.println("Unlinking failed, matters not: it will expire...");
+                      }
+                      redisConnection.close();
+                    });
+
                   } else {
-                    System.out.println("Unlinking failed, matters not: it will expire...");
+                    redisConnection.close();
+                    raise500(context, updateResult.cause());
                   }
                 });
-
-              } else {
-                raise500(context, updateResult.cause());
               }
-            });
-          }
 
+            } else {
+
+              // Redis error
+              redisConnection.close();
+              raise500(context, res.cause());
+            }
+          });
         } else {
-
-          // Redis error
-          raise500(context, res.cause());
+          raise500(context, redisConnectionRes.cause());
         }
       });
     }
