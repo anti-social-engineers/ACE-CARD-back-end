@@ -22,6 +22,7 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.net.NetClientOptions;
 import io.vertx.core.net.PemKeyCertOptions;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.auth.PubSecKeyOptions;
@@ -105,10 +106,13 @@ public class MainVerticle extends AbstractVerticle {
      */
 
     //TODO SETTINGS
-    Redis.createClient(vertx, new RedisOptions()).connect(connectRes -> {
+    RedisOptions backEndRedisOptions = new RedisOptions()
+      .setNetClientOptions(new NetClientOptions()
+        .setIdleTimeout(10));
+    Redis.createClient(vertx, backEndRedisOptions).connect(connectRes -> {
       if (connectRes.succeeded()) {
         RedisUtils.backEndRedis = connectRes.result();
-        RedisUtils.backEndRedis.exceptionHandler(e -> attemptReconnectRedis(vertx, 0, new RedisOptions(), true));
+        RedisUtils.backEndRedis.exceptionHandler(e -> attemptReconnectRedis(vertx, 0, backEndRedisOptions, true));
       } else {
         System.out.println("!!! Redis is down !!!");
       }
@@ -119,7 +123,9 @@ public class MainVerticle extends AbstractVerticle {
      */
     RedisOptions frontEndRedisOptions = new RedisOptions()
       .setEndpoint(SocketAddress.inetSocketAddress(config().getInteger("realtime.redis.port", 6379), config().getString("realtime.redis.host", "127.0.0.1")))
-      .setPassword(config().getString("realtime.auth", null));
+      .setPassword(config().getString("realtime.auth", null))
+      .setNetClientOptions(new NetClientOptions()
+      .setIdleTimeout(10));
     Redis.createClient(vertx, frontEndRedisOptions).connect(connectRes -> {
       if (connectRes.succeeded()) {
         RedisUtils.frontEndRedis = connectRes.result();

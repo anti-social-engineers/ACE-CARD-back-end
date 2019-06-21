@@ -88,4 +88,8 @@ public class RedisUtils {
       resultHandler.handle(Future.failedFuture(e));
     }
   }
+
+  public static void getBackendRedisClient(Handler<AsyncResult<String>> resultHandler) {
+
+  }
 }
