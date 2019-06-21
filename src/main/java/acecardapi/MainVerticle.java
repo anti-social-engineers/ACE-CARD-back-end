@@ -137,6 +137,7 @@ public class MainVerticle extends AbstractVerticle {
 
     RedisUtils.backEndRedisOptions = backEndRedisOptions;
     RedisUtils.frontEndRedisOptions = frontEndRedisOptions;
+    RedisUtils.vertx = vertx;
 
     /*
     Setup JWT

@@ -30,7 +30,7 @@ public class RedisUtils {
   public static Redis backEndRedis;
   public static Redis frontEndRedis;
   private static int MAX_REDIS_RECONNECT_ATTEMPTS = 30;
-  private static Vertx vertx;
+  public static Vertx vertx;
   public static RedisOptions backEndRedisOptions;
   public static RedisOptions frontEndRedisOptions;
 
@@ -94,7 +94,7 @@ public class RedisUtils {
 
   public static void getRedisConnection(boolean isBackend, Handler<AsyncResult<Redis>> resultHandler) {
 
-    RedisOptions redisOptions = null;
+    RedisOptions redisOptions;
     if (isBackend) {
       redisOptions = backEndRedisOptions;
     }
