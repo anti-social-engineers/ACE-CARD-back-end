@@ -157,7 +157,7 @@ ALTER TABLE users OWNER TO postgres;
 --
 
 ALTER TABLE ONLY addresses
-    ADD CONSTRAINT addresses_address_address_num_city_18b2518a_uniq UNIQUE (address, address_num, city, postalcode, country);
+    ADD CONSTRAINT addresses_address_address_num_city_address_annex_uniq UNIQUE (address, address_num, city, postalcode, country, address_annex);
 
 
 --
