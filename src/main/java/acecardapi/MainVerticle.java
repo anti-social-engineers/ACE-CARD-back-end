@@ -20,6 +20,7 @@ import io.reactiverse.pgclient.PgPoolOptions;
 import io.sentry.Sentry;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.net.NetClientOptions;
@@ -59,11 +60,21 @@ public class MainVerticle extends AbstractVerticle {
     }
 
     /*
-    Setup Sentry for Debugging
+    Setup Stripe
     */
     if (config().getBoolean("stripe.enabled", false)) {
       Stripe.apiKey = config().getString("stripe.apikey");
     }
+
+    /*
+    Setup general exception handling
+     */
+    vertx.exceptionHandler(new Handler<Throwable>() {
+      @Override
+      public void handle(Throwable throwable) {
+        Sentry.capture(throwable);
+      }
+    });
 
     // Create the router
     final Router router = Router.router(vertx);

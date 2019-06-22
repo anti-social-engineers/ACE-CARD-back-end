@@ -57,6 +57,7 @@ public class UserHandler extends AbstractCustomHandler {
   }
 
   public void getUserData(RoutingContext context) {
+    System.out.println("Inside getUserData");
 
     dbClient.getConnection(getConn -> {
       if (getConn.succeeded()) {
@@ -70,6 +71,7 @@ public class UserHandler extends AbstractCustomHandler {
           if (res.succeeded()) {
 
             if(res.result().rowCount() == 0) {
+              System.out.println("This user has no card.");
 
               // User exists, but does not yet have an ace card
 
@@ -77,8 +79,9 @@ public class UserHandler extends AbstractCustomHandler {
 
                 if (res2.succeeded()) {
                   Row row2 = res2.result().iterator().next();
-                  getUserDataNoCard(context, row2.getString("email"), row2.getString("role"));
                   connection.close();
+                  System.out.println("Connection has been closed, going to response: has no card");
+                  getUserDataNoCard(context, row2.getString("email"), row2.getString("role"));
                 } else {
                   raise500(context, res2.cause());
                   connection.close();
@@ -86,6 +89,7 @@ public class UserHandler extends AbstractCustomHandler {
               });
 
             } else {
+              System.out.println("This user has a card.");
 
               // User has an ace card (or requested one)
 
@@ -94,8 +98,9 @@ public class UserHandler extends AbstractCustomHandler {
                   Row row1 = res.result().iterator().next();
                   Row row2 = res2.result().iterator().next();
 
-                  getUserDataWithCard(context, row1, row2);
                   connection.close();
+                  System.out.println("Connection has been closed, going to response: has card");
+                  getUserDataWithCard(context, row1, row2);
 
                 } else {
                   raise500(context, res2.cause());
@@ -118,12 +123,18 @@ public class UserHandler extends AbstractCustomHandler {
   }
 
   private void getUserDataNoCard(RoutingContext context, String email, String role) {
+    System.out.println("Generating response with no card....");
     Account acc = new Account(email, false, role);
 
+    System.out.println("Sending with no card response....");
     raise200(context, acc.toJson());
   }
 
   private void getUserDataWithCard(RoutingContext context, Row cardRow, Row userRow) {
+    // Generate Account response when user has a card
+
+
+    System.out.println("Generating response with card....");
     Account acc = new Account(
       userRow.getString("first_name"),
       userRow.getString("last_name"),
@@ -138,6 +149,7 @@ public class UserHandler extends AbstractCustomHandler {
       cardRow.getNumeric("credits").doubleValue()
     );
 
+    System.out.println("Sending with card response....");
     raise200(context, acc.toJson());
   }
 
