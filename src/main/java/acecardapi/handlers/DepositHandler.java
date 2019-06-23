@@ -21,6 +21,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.redis.client.Redis;
 import io.vertx.redis.client.RedisAPI;
 
 import java.time.OffsetDateTime;
@@ -29,6 +30,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static acecardapi.utils.NumberUtilities.intMinMaxValue;
+import static acecardapi.utils.RedisUtils.getRedisConnection;
 import static acecardapi.utils.RedisUtils.realTimeRedisLPUSH;
 import static acecardapi.utils.RequestUtilities.attributesCheckJsonObject;
 
@@ -318,11 +320,19 @@ public class DepositHandler extends AbstractCustomHandler {
 
                    connection.close();
 
-                   RedisAPI realTimeRedisClient = RedisAPI.api(RedisUtils.frontEndRedis);
+                   getRedisConnection(false, redisConnectionRes -> {
+                     if (redisConnectionRes.succeeded()) {
 
-                   // Create a notification in the real time redis queue
-                   realTimeRedisLPUSH(realTimeRedisClient, userId, "deposit", dAmount, newAmount,  OffsetDateTime.now(), redisRes -> {
-                     System.out.println(redisRes.result());
+                       Redis redisConnection = redisConnectionRes.result();
+
+                       RedisAPI realTimeRedisClient = RedisAPI.api(redisConnection);
+
+                       // Create a notification in the real time redis queue
+                       realTimeRedisLPUSH(realTimeRedisClient, userId, "deposit", dAmount, newAmount,  OffsetDateTime.now(), redisRes -> {
+                         System.out.println(redisRes.result());
+                         redisConnection.close();
+                       });
+                     }
                    });
 
                  } else {

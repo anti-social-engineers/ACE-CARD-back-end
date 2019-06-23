@@ -20,8 +20,10 @@ import io.reactiverse.pgclient.PgPoolOptions;
 import io.sentry.Sentry;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.net.NetClientOptions;
 import io.vertx.core.net.PemKeyCertOptions;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.auth.PubSecKeyOptions;
@@ -58,11 +60,21 @@ public class MainVerticle extends AbstractVerticle {
     }
 
     /*
-    Setup Sentry for Debugging
+    Setup Stripe
     */
     if (config().getBoolean("stripe.enabled", false)) {
       Stripe.apiKey = config().getString("stripe.apikey");
     }
+
+    /*
+    Setup general exception handling
+     */
+    vertx.exceptionHandler(new Handler<Throwable>() {
+      @Override
+      public void handle(Throwable throwable) {
+        Sentry.capture(throwable);
+      }
+    });
 
     // Create the router
     final Router router = Router.router(vertx);
@@ -105,29 +117,38 @@ public class MainVerticle extends AbstractVerticle {
      */
 
     //TODO SETTINGS
-    Redis.createClient(vertx, new RedisOptions()).connect(connectRes -> {
-      if (connectRes.succeeded()) {
-        RedisUtils.backEndRedis = connectRes.result();
-        RedisUtils.backEndRedis.exceptionHandler(e -> attemptReconnectRedis(vertx, 0, new RedisOptions(), true));
-      } else {
-        System.out.println("!!! Redis is down !!!");
-      }
-    });
+    RedisOptions backEndRedisOptions = new RedisOptions()
+      .setNetClientOptions(new NetClientOptions()
+        .setIdleTimeout(30));
+//    Redis.createClient(vertx, backEndRedisOptions).connect(connectRes -> {
+//      if (connectRes.succeeded()) {
+//        RedisUtils.backEndRedis = connectRes.result();
+//        RedisUtils.backEndRedis.exceptionHandler(e -> attemptReconnectRedis(vertx, 0, backEndRedisOptions, true));
+//      } else {
+//        System.out.println("!!! Redis is down !!!");
+//      }
+//    });
 
     /*
     Setup Redis for frontend realtime notifcations
      */
     RedisOptions frontEndRedisOptions = new RedisOptions()
       .setEndpoint(SocketAddress.inetSocketAddress(config().getInteger("realtime.redis.port", 6379), config().getString("realtime.redis.host", "127.0.0.1")))
-      .setPassword(config().getString("realtime.auth", null));
-    Redis.createClient(vertx, frontEndRedisOptions).connect(connectRes -> {
-      if (connectRes.succeeded()) {
-        RedisUtils.frontEndRedis = connectRes.result();
-        RedisUtils.frontEndRedis.exceptionHandler(e -> attemptReconnectRedis(vertx, 0, frontEndRedisOptions, false));
-      } else {
-        System.out.println("!!! [FRONTEND] Redis is down !!!");
-      }
-    });
+      .setPassword(config().getString("realtime.auth", null))
+      .setNetClientOptions(new NetClientOptions()
+      .setIdleTimeout(30));
+//    Redis.createClient(vertx, frontEndRedisOptions).connect(connectRes -> {
+//      if (connectRes.succeeded()) {
+//        RedisUtils.frontEndRedis = connectRes.result();
+//        RedisUtils.frontEndRedis.exceptionHandler(e -> attemptReconnectRedis(vertx, 0, frontEndRedisOptions, false));
+//      } else {
+//        System.out.println("!!! [FRONTEND] Redis is down !!!");
+//      }
+//    });
+
+    RedisUtils.backEndRedisOptions = backEndRedisOptions;
+    RedisUtils.frontEndRedisOptions = frontEndRedisOptions;
+    RedisUtils.vertx = vertx;
 
     /*
     Setup JWT

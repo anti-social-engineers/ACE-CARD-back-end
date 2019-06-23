@@ -27,6 +27,8 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.mail.MailClient;
 import io.vertx.ext.mail.MailMessage;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.redis.RedisClient;
+import io.vertx.redis.client.Redis;
 import io.vertx.redis.client.RedisAPI;
 
 import java.time.OffsetDateTime;
@@ -35,6 +37,7 @@ import java.util.Arrays;
 import java.util.UUID;
 
 import static acecardapi.utils.EmailMessages.passwordResetMail;
+import static acecardapi.utils.RedisUtils.getRedisConnection;
 import static acecardapi.utils.RequestUtilities.attributesCheckJsonObject;
 import static acecardapi.utils.RequestUtilities.singlePathParameterCheck;
 import static acecardapi.utils.StringUtilities.isString;
@@ -54,6 +57,7 @@ public class UserHandler extends AbstractCustomHandler {
   }
 
   public void getUserData(RoutingContext context) {
+    System.out.println("Inside getUserData");
 
     dbClient.getConnection(getConn -> {
       if (getConn.succeeded()) {
@@ -67,6 +71,7 @@ public class UserHandler extends AbstractCustomHandler {
           if (res.succeeded()) {
 
             if(res.result().rowCount() == 0) {
+              System.out.println("This user has no card.");
 
               // User exists, but does not yet have an ace card
 
@@ -74,8 +79,9 @@ public class UserHandler extends AbstractCustomHandler {
 
                 if (res2.succeeded()) {
                   Row row2 = res2.result().iterator().next();
-                  getUserDataNoCard(context, row2.getString("email"), row2.getString("role"));
                   connection.close();
+                  System.out.println("Connection has been closed, going to response: has no card");
+                  getUserDataNoCard(context, row2.getString("email"), row2.getString("role"));
                 } else {
                   raise500(context, res2.cause());
                   connection.close();
@@ -83,6 +89,7 @@ public class UserHandler extends AbstractCustomHandler {
               });
 
             } else {
+              System.out.println("This user has a card.");
 
               // User has an ace card (or requested one)
 
@@ -91,8 +98,9 @@ public class UserHandler extends AbstractCustomHandler {
                   Row row1 = res.result().iterator().next();
                   Row row2 = res2.result().iterator().next();
 
-                  getUserDataWithCard(context, row1, row2);
                   connection.close();
+                  System.out.println("Connection has been closed, going to response: has card");
+                  getUserDataWithCard(context, row1, row2);
 
                 } else {
                   raise500(context, res2.cause());
@@ -115,12 +123,18 @@ public class UserHandler extends AbstractCustomHandler {
   }
 
   private void getUserDataNoCard(RoutingContext context, String email, String role) {
+    System.out.println("Generating response with no card....");
     Account acc = new Account(email, false, role);
 
+    System.out.println("Sending with no card response....");
     raise200(context, acc.toJson());
   }
 
   private void getUserDataWithCard(RoutingContext context, Row cardRow, Row userRow) {
+    // Generate Account response when user has a card
+
+
+    System.out.println("Generating response with card....");
     Account acc = new Account(
       userRow.getString("first_name"),
       userRow.getString("last_name"),
@@ -135,6 +149,7 @@ public class UserHandler extends AbstractCustomHandler {
       cardRow.getNumeric("credits").doubleValue()
     );
 
+    System.out.println("Sending with card response....");
     raise200(context, acc.toJson());
   }
 
@@ -536,26 +551,38 @@ public class UserHandler extends AbstractCustomHandler {
 
     RandomToken token = new RandomToken(48);
 
-    RedisAPI redisClient = RedisAPI.api(RedisUtils.backEndRedis);
+    getRedisConnection(true, redisRes -> {
 
-    processUserExistRedis(redisClient, token, userId, res -> {
-      if (res.succeeded()) {
+      if (redisRes.succeeded()) {
 
-        MailMessage message = passwordResetMail(email, res.result(), config.getString("password.reset_link", ""));
+        Redis redis = redisRes.result();
 
-        mailClient.sendMail(message, result -> {
-          if (result.succeeded()) {
-            raise200(context);
+        RedisAPI redisClient = RedisAPI.api(redis);
+
+        processUserExistRedis(redisClient, token, userId, res -> {
+          if (res.succeeded()) {
+
+            MailMessage message = passwordResetMail(email, res.result(), config.getString("password.reset_link", ""));
+
+            mailClient.sendMail(message, result -> {
+              if (result.succeeded()) {
+                redis.close();
+                raise200(context);
+              } else {
+                redis.close();
+                raise500(context, result.cause());
+              }
+            });
+
           } else {
-            raise500(context, result.cause());
+            redis.close();
+            raise500(context, res.cause());
           }
         });
-
       } else {
-        raise500(context, res.cause());
+        raise500(context, redisRes.cause());
       }
     });
-
   }
 
   private void processUserExistRedis(RedisAPI redisClient, RandomToken token, UUID userId, Handler<AsyncResult<String>> resultHandler) {
@@ -600,40 +627,57 @@ public class UserHandler extends AbstractCustomHandler {
         } else if (context.getBodyAsJson().getString("password").length() < config.getInteger("password.length", 8)) {
           raise422(context, new InputLengthFormatViolation("password"));
         } else {
-          RedisAPI redisAPI = RedisAPI.api(RedisUtils.backEndRedis);
 
-          redisAPI.get(context.getBodyAsJson().getString("token"), redisRes -> {
-            if (redisRes.succeeded()) {
+          getRedisConnection(true, redisConnectionRes -> {
 
-              if (redisRes.result() == null) {
-                raise404(context);
-              } else {
-                UUID userId = UUID.fromString(redisRes.result().toString());
+            if (redisConnectionRes.succeeded()) {
+              Redis redisConnection = redisConnectionRes.result();
 
-                String newSalt = authProvider.generateSalt();
-                String newPasswordHash = authProvider.computeHash(context.getBodyAsJson().getString("password"), newSalt);
+              RedisAPI redisAPI = RedisAPI.api(redisConnection);
 
-                // Update the user with new hash + salt
-                dbClient.preparedQuery("UPDATE users SET password = $1, password_salt = $2 WHERE id = $3", Tuple.of(newPasswordHash, newSalt, userId), updateUserRes -> {
-                  if (updateUserRes.succeeded()) {
+              redisAPI.get(context.getBodyAsJson().getString("token"), redisRes -> {
+                if (redisRes.succeeded()) {
 
-                    if (updateUserRes.result().rowCount() != 1) {
-                      raise500(context, new Exception("[ResetPasswordProcess] Updated but no row was changed."));
-                    } else {
-                      raise200(context);
-
-                      // If DEL fails, it should not matter: it will expire within 60 minutes
-                      redisAPI.del(Arrays.asList(context.getBodyAsJson().getString("token")), delRedisRes -> {});
-                    }
-
+                  if (redisRes.result() == null) {
+                    redisConnection.close();
+                    raise404(context);
                   } else {
-                    raise500(context, updateUserRes.cause());
-                  }
-                });
-              }
 
+                    UUID userId = UUID.fromString(redisRes.result().toString());
+
+                    String newSalt = authProvider.generateSalt();
+                    String newPasswordHash = authProvider.computeHash(context.getBodyAsJson().getString("password"), newSalt);
+
+                    // Update the user with new hash + salt
+                    dbClient.preparedQuery("UPDATE users SET password = $1, password_salt = $2 WHERE id = $3", Tuple.of(newPasswordHash, newSalt, userId), updateUserRes -> {
+                      if (updateUserRes.succeeded()) {
+
+                        if (updateUserRes.result().rowCount() != 1) {
+                          redisConnection.close();
+                          raise500(context, new Exception("[ResetPasswordProcess] Updated but no row was changed."));
+                        } else {
+                          raise200(context);
+
+                          // If DEL fails, it should not matter: it will expire within 60 minutes
+                          redisAPI.del(Arrays.asList(context.getBodyAsJson().getString("token")), delRedisRes -> {
+                            redisConnection.close();
+                          });
+                        }
+
+                      } else {
+                        redisConnection.close();
+                        raise500(context, updateUserRes.cause());
+                      }
+                    });
+                  }
+
+                } else {
+                  redisConnection.close();
+                  raise500(context, redisRes.cause());
+                }
+              });
             } else {
-              raise500(context, redisRes.cause());
+              raise500(context, redisConnectionRes.cause());
             }
           });
         }

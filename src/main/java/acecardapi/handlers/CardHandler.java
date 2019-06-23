@@ -502,33 +502,37 @@ public class CardHandler extends AbstractCustomHandler{
 
           if (userRes.succeeded()) {
 
-            Row userRow = userRes.result().iterator().next();
-            UUID userId = userRow.getUUID("id");
+            if (userRes.result().rowCount() <= 0) {
+              raise500(context, new Exception("Linking email User does not exist!"));
+            } else {
+              Row userRow = userRes.result().iterator().next();
+              UUID userId = userRow.getUUID("id");
 
-            //Check if card with this code already exists
-            connection.preparedQuery("SELECT id FROM cards WHERE card_code=$1", Tuple.of(card.getCard_code()), existCardRes -> {
-              if (existCardRes.succeeded()) {
+              //Check if card with this code already exists
+              connection.preparedQuery("SELECT id FROM cards WHERE card_code=$1", Tuple.of(card.getCard_code()), existCardRes -> {
+                if (existCardRes.succeeded()) {
 
-                if (existCardRes.result().rowCount() >= 1) {
-                  // First set to null
-                  connection.preparedQuery("UPDATE cards SET card_code = $1 WHERE id = $2", Tuple.of(null, existCardRes.result().iterator().next().getUUID("id")), setCardNullRes -> {
-                    if (setCardNullRes.succeeded()) {
-                      setCardCode(context, connection, card, userId);
-                    } else {
-                      raise500(context, setCardNullRes.cause());
-                      connection.close();
-                    }
-                  });
+                  if (existCardRes.result().rowCount() >= 1) {
+                    // First set to null
+                    connection.preparedQuery("UPDATE cards SET card_code = $1 WHERE id = $2", Tuple.of(null, existCardRes.result().iterator().next().getUUID("id")), setCardNullRes -> {
+                      if (setCardNullRes.succeeded()) {
+                        setCardCode(context, connection, card, userId);
+                      } else {
+                        raise500(context, setCardNullRes.cause());
+                        connection.close();
+                      }
+                    });
+                  } else {
+                    // Set card code
+                    setCardCode(context, connection, card, userId);
+                  }
+
                 } else {
-                  // Set card code
-                  setCardCode(context, connection, card, userId);
+                  raise500(context, existCardRes.cause());
+                  connection.close();
                 }
-
-              } else {
-                raise500(context, existCardRes.cause());
-                connection.close();
-              }
-            });
+              });
+            }
 
           } else {
             raise500(context, userRes.cause());
